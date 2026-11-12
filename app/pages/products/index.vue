@@ -18,7 +18,33 @@
           search-label="Buscar productos"
           search-placeholder="Buscar por nombre, slug o descripción…"
           @update:search="table.setSearch"
-        />
+        >
+          <template #filters>
+            <label for="product-category-filter" class="sr-only">Filtrar por categoría</label>
+            <select
+              id="product-category-filter"
+              v-model="categoryFilter"
+              class="h-10 rounded-md border border-lumia-ink/15 bg-white px-3 text-[14px] text-lumia-ink"
+            >
+              <option value="">Todas las categorías</option>
+              <option v-for="category in categoryOptions" :key="category.id" :value="category.id">
+                {{ category.name }}
+              </option>
+            </select>
+            <label for="product-subcategory-filter" class="sr-only">Filtrar por subcategoría</label>
+            <select
+              id="product-subcategory-filter"
+              v-model="subcategoryFilter"
+              :disabled="!categoryFilter"
+              class="h-10 rounded-md border border-lumia-ink/15 bg-white px-3 text-[14px] text-lumia-ink disabled:opacity-50"
+            >
+              <option value="">Todas las subcategorías</option>
+              <option v-for="sub in subcategoryOptions" :key="sub.id" :value="sub.id">
+                {{ sub.name }}
+              </option>
+            </select>
+          </template>
+        </TableToolbar>
         <DataTable
           :columns="columns"
           :rows="rows"
@@ -94,12 +120,45 @@ const auth = useAuth()
 const canCreate = computed(() => auth.can(PERMISSIONS.PRODUCTS_CREATE))
 const createOpen = ref(false)
 
+const { request } = useAdminApi()
+
+// Filtros de jerarquía: primero categoría, luego subcategoría (solo de esa categoría).
+const { data: categoryData } = await useAsyncData('product-filter-categories', () =>
+  request<{ items: Array<{ id: string; name: string }> }>('/api/admin/categories', { query: { limit: 100 } }),
+)
+const categoryOptions = computed(() => categoryData.value?.items ?? [])
+
+const categoryFilter = ref('')
+const subcategoryFilter = ref('')
+const subcategoryOptions = ref<Array<{ id: string; name: string }>>([])
+
+watch(categoryFilter, async (categoryId) => {
+  subcategoryFilter.value = ''
+  subcategoryOptions.value = []
+  if (!categoryId) return
+  try {
+    const res = await request<{ items: Array<{ id: string; name: string }> }>(
+      `/api/admin/categories/${categoryId}/subcategories`,
+    )
+    subcategoryOptions.value = res.items
+  } catch {
+    subcategoryOptions.value = []
+  }
+})
+
 const table = useTableQuery({ allowedLimits: [20, 50, 100] })
+const extraQuery = computed(() => ({
+  category: categoryFilter.value || undefined,
+  subcategory: subcategoryFilter.value || undefined,
+}))
 const { rows, pagination, loading, errorMessage, refresh } = useServerList<ProductRow>(
   'admin-products',
   '/api/admin/products',
   table,
+  extraQuery,
 )
+
+watch([categoryFilter, subcategoryFilter], () => table.setPage(1))
 
 const columns: TableColumn[] = [
   { key: 'name', label: 'Producto' },
