@@ -58,7 +58,7 @@
                   {{ role.name }}{{ role.isArchived ? ' (archivado)' : '' }}
                 </BaseBadge>
               </template>
-              <span v-else class="text-[12px] text-lumia-ink/55">Rol base: {{ LEGACY_ROLE_LABELS[row.legacyRole] }}</span>
+              <span v-else class="text-[12px] text-lumia-ink/55">Sin roles asignados</span>
             </div>
           </template>
           <template #cell-twoFactorEnabled="{ row }">
@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { PERMISSIONS } from '#shared/auth/permissions'
-import { LEGACY_ROLE_LABELS, type UserRow } from '#shared/schemas/users'
+import type { UserRow } from '#shared/schemas/users'
 import type { TableColumn } from '~/types/ui'
 
 definePageMeta({

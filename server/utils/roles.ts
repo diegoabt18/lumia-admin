@@ -104,8 +104,7 @@ export async function assertNoEscalation(event: H3Event, granted: readonly strin
 }
 
 /**
- * Archivar o eliminar un rol hace que el Server lo ignore. A quien solo tuviera ese rol le aplicaría
- * el rol base (`admin` = todos los permisos), y los roles que heredan de él perderían permisos.
+ * Archivar o eliminar un rol hace que sus usuarios pierdan esos permisos, y los roles que heredan de él también.
  * Por eso solo se permite sin usuarios asignados y sin roles que hereden de él.
  */
 export function assertRoleDetachable(role: RoleRow, action: 'archive' | 'delete') {

@@ -26,7 +26,6 @@ export function toUserDetail(data: ServerUserDetail, actorId: string): UserDetai
     id: data.user.id,
     email: data.user.email,
     name: data.user.name?.trim() || null,
-    legacyRole: data.user.role,
     isStaff: data.user.isStaff,
     twoFactorEnabled: data.user.twoFactorEnabled,
     createdAt: data.user.createdAt ?? null,
@@ -53,8 +52,7 @@ async function fetchEffectiveRole(event: H3Event, roleId: string) {
  *    permisos de quien lo hace. Se simula el cálculo del Server (AuthorizationService
  *    .resolveRoleBasedPermissions): unión de `allow` de los roles activos menos la unión de `deny`.
  *    Quitar un rol con denegaciones también puede conceder permisos, así que se comprueba igual.
- * 4. Si el cambio deja al usuario sin roles activos, el Server vuelve al rol base (`role`). Si ese rol
- *    no es `user`, se bloquea: el resultado (p. ej. todos los permisos con `admin`) no es evidente.
+ * 4. Si el cambio deja al usuario sin roles activos, no tendrá permisos (no hay respaldo por rol base).
  *
  * Exige admin.roles.read además de admin.users.manage, porque necesita leer los roles.
  * Comprobación previa (no atómica): el Server sigue siendo quien aplica el cambio.
@@ -97,16 +95,9 @@ export async function assertRoleChangeAllowed(
   const verdict = evaluateRoleChange({
     actorPermissions: actor.permissions,
     targetPermissions: target.effectivePermissionKeys,
-    legacyRole: target.user.role,
     resultingRoles: effective,
   })
   if (verdict.ok) return
-  if (verdict.reason === 'fallback') {
-    throwBffError(409, {
-      code: 'FALLBACK_TO_LEGACY_ROLE',
-      message: `Sin roles activos, el usuario volvería a los permisos de su rol base (${target.user.role}). Asígnale primero el rol que debe tener.`,
-    })
-  }
   const keys = verdict.escalated
   throwBffError(403, {
     code: 'PRIVILEGE_ESCALATION',
@@ -116,7 +107,6 @@ export async function assertRoleChangeAllowed(
 
 export type RoleChangeVerdict =
   | { ok: true }
-  | { ok: false; reason: 'fallback' }
   | { ok: false; reason: 'escalation'; escalated: string[] }
 
 /**
@@ -126,15 +116,13 @@ export type RoleChangeVerdict =
 export function evaluateRoleChange(input: {
   actorPermissions: readonly string[]
   targetPermissions: readonly string[]
-  legacyRole: string
   resultingRoles: ReadonlyArray<{ allow: readonly string[]; deny: readonly string[] }>
 }): RoleChangeVerdict {
   const allow = new Set(input.resultingRoles.flatMap((r) => r.allow))
   for (const key of input.resultingRoles.flatMap((r) => r.deny)) allow.delete(key)
 
-  if (allow.size === 0) {
-    return input.legacyRole === 'user' ? { ok: true } : { ok: false, reason: 'fallback' }
-  }
+  // Sin permisos efectivos no hay nada que escalar: el usuario simplemente no tiene acceso.
+  if (allow.size === 0) return { ok: true }
   if (input.actorPermissions.includes(PERMISSION_WILDCARD)) return { ok: true }
 
   const before = new Set(input.targetPermissions)

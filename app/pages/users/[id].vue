@@ -51,7 +51,7 @@
             </li>
           </ul>
           <p v-else class="rounded-xl bg-lumia-cream/60 p-3 text-[13px] text-lumia-ink/70">
-            Sin roles asignados: usa los permisos de su rol base, <strong>{{ LEGACY_ROLE_LABELS[user.legacyRole] }}</strong>.
+            Sin roles asignados: no tiene permisos en el panel hasta que se le asigne uno.
           </p>
 
           <div v-if="canManage" class="mt-6 border-t border-lumia-ink/[0.06] pt-5">
@@ -87,10 +87,6 @@
               <dd class="break-all text-lumia-ink">{{ user.email }}</dd>
             </div>
             <div>
-              <dt class="text-[12px] text-lumia-ink/50">Rol base</dt>
-              <dd class="text-lumia-ink/80">{{ LEGACY_ROLE_LABELS[user.legacyRole] }}</dd>
-            </div>
-            <div>
               <dt class="text-[12px] text-lumia-ink/50">Verificación en dos pasos</dt>
               <dd class="text-lumia-ink/80">{{ user.twoFactorEnabled ? 'Activa' : 'No configurada' }}</dd>
             </div>
@@ -124,7 +120,7 @@
 <script setup lang="ts">
 import { IconX } from '@tabler/icons-vue'
 import { PERMISSIONS } from '#shared/auth/permissions'
-import { LEGACY_ROLE_LABELS, type AssignableRoles, type RoleSummary, type UserDetail } from '#shared/schemas/users'
+import type { AssignableRoles, RoleSummary, UserDetail } from '#shared/schemas/users'
 
 definePageMeta({
   layout: 'admin',
@@ -197,9 +193,6 @@ async function assignRole() {
   assignError.value = null
 
   const notes: string[] = []
-  if (!current.roles.some((r) => !r.isArchived)) {
-    notes.push(`Hoy usa los permisos de su rol base (${LEGACY_ROLE_LABELS[current.legacyRole]}). Desde ahora sus permisos serán los de los roles asignados.`)
-  }
   if (!current.isStaff) {
     notes.push('Es una cuenta de cliente: recibirá todos los permisos del rol, incluido el acceso al panel si el rol lo concede.')
   }
@@ -235,7 +228,7 @@ async function removeRole(role: RoleSummary) {
     title: `Quitar "${role.name}"`,
     description:
       current.roles.length === 1
-        ? `Es su único rol: volverá a los permisos de su rol base (${LEGACY_ROLE_LABELS[current.legacyRole]}). El cambio puede tardar hasta 5 minutos en aplicarse.`
+        ? 'Es su único rol: perderá los permisos que le daba. El cambio puede tardar hasta 5 minutos en aplicarse.'
         : 'Perderá los permisos que solo le da este rol. El cambio puede tardar hasta 5 minutos en aplicarse.',
     confirmLabel: 'Quitar rol',
     tone: 'danger',

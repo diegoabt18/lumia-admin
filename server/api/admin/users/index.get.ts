@@ -23,7 +23,6 @@ export default defineEventHandler(async (event): Promise<UserList> => {
         id: u.id,
         email: u.email,
         name: u.name?.trim() || null,
-        legacyRole: u.role,
         isStaff: u.isStaff,
         twoFactorEnabled: u.twoFactorEnabled,
         roles: u.assignedRoles.map(toRoleSummary),

@@ -11,22 +11,10 @@ export type { RoleSummary, ServerRole } from './roles'
  * - Rutas: server/src/routes/security.routes.ts (`/admin/security/users*`, admin.users.read/manage)
  *   y `/admin/security/roles*` (admin.roles.read).
  * - Salida: SecurityAdminService.listUsers/getUser (permisos efectivos reales: roles RBAC con
- *   herencia y denegaciones, o el rol base `role` si no tiene asignaciones, más permisos temporales).
+ *   herencia y denegaciones, más permisos temporales; sin roles asignados, sin permisos).
  *
- * No se usan `/admin/users/:id` ni `/admin/staff-users*`: calculan los permisos solo con el rol base
- * (ignoran los roles RBAC) y `/admin/staff-users/:id/roles` cambia el rol base, otro sistema.
+ * No se usan `/admin/users/:id` ni `/admin/staff-users*`: son el sistema antiguo basado en el rol base.
  */
-
-export const LEGACY_ROLES = ['admin', 'moderator', 'user'] as const
-export type LegacyRole = (typeof LEGACY_ROLES)[number]
-
-export const LEGACY_ROLE_LABELS: Record<LegacyRole, string> = {
-  admin: 'Administrador',
-  moderator: 'Moderador',
-  user: 'Cliente',
-}
-
-const legacyRole = z.enum(LEGACY_ROLES).catch('user')
 
 export const serverUserListSchema = z.object({
   items: z.array(
@@ -34,7 +22,6 @@ export const serverUserListSchema = z.object({
       id: z.string(),
       email: z.string(),
       name: z.string().nullable().optional(),
-      role: legacyRole,
       isStaff: z.boolean().optional().default(false),
       twoFactorEnabled: z.boolean().optional().default(false),
       assignedRoles: z.array(serverRoleSchema).optional().default([]),
@@ -50,7 +37,6 @@ export const serverUserDetailSchema = z.object({
     id: z.string(),
     email: z.string(),
     name: z.string().nullable().optional(),
-    role: legacyRole,
     isStaff: z.boolean().optional().default(false),
     twoFactorEnabled: z.boolean().optional().default(false),
     createdAt: isoDate,
@@ -64,7 +50,6 @@ export interface UserRow {
   id: string
   email: string
   name: string | null
-  legacyRole: LegacyRole
   isStaff: boolean
   twoFactorEnabled: boolean
   roles: RoleSummary[]
@@ -81,7 +66,6 @@ export interface UserDetail {
   id: string
   email: string
   name: string | null
-  legacyRole: LegacyRole
   isStaff: boolean
   twoFactorEnabled: boolean
   createdAt: string | null

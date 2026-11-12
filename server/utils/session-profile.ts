@@ -16,7 +16,6 @@ const serverUserSchema = z.object({
   email: z.string(),
   name: z.string().optional().nullable(),
   nickname: z.string().optional().nullable(),
-  role: z.enum(['admin', 'user', 'moderator']).catch('user'),
   avatar: z.string().optional().nullable(),
   provider: z.enum(['local', 'google']).optional().nullable().catch(null),
 })
@@ -30,7 +29,6 @@ function toAdminUser(user: z.infer<typeof serverUserSchema>): AdminUser {
     id: user.id,
     email: user.email,
     displayName,
-    role: user.role,
     avatar: user.avatar && /^https:\/\//.test(user.avatar) ? user.avatar : null,
     provider: user.provider ?? null,
   }

@@ -7,14 +7,10 @@
  * (direcciones, preferencias, etc.).
  */
 
-/** Roles base definidos en el Server (UserRole). La autorización usa permisos, no el rol. */
-export type ServerUserRole = 'admin' | 'user' | 'moderator'
-
 export interface AdminUser {
   id: string
   email: string
   displayName: string
-  role: ServerUserRole
   avatar: string | null
   provider: 'local' | 'google' | null
 }
