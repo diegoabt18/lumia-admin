@@ -48,6 +48,7 @@ export const NAVIGATION: readonly NavGroup[] = [
       { label: 'Productos', to: '/products', icon: IconBoxSeam, anyOf: [PERMISSIONS.PRODUCTS_READ], available: true },
       { label: 'Inventario', to: '/inventory', icon: IconPackages, anyOf: [PERMISSIONS.PRODUCTS_READ], available: true },
       { label: 'Categorías', to: '/categories', icon: IconCategory, anyOf: [PERMISSIONS.CATEGORIES_READ], available: true },
+      { label: 'Subcategorías', to: '/subcategories', icon: IconCategory, anyOf: [PERMISSIONS.CATEGORIES_READ], available: true },
       { label: 'Promociones', to: '/promotions', icon: IconRosetteDiscount, anyOf: [PERMISSIONS.PRODUCTS_READ], available: true },
       { label: 'Banners', to: '/banners', icon: IconSlideshow, anyOf: [PERMISSIONS.PRODUCTS_READ], available: true },
       { label: 'Imágenes', to: '/images', icon: IconPhoto, anyOf: [PERMISSIONS.PRODUCTS_UPDATE, PERMISSIONS.MATERIALS_UPDATE], available: true },

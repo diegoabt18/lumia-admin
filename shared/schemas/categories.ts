@@ -67,6 +67,7 @@ const serverCategorySchema = z.object({
   subcategoryCount: z.number().int().min(0).catch(0),
   activeSubcategoryCount: z.number().int().min(0).catch(0),
   productCount: z.number().int().min(0).catch(0),
+  unclassifiedProductCount: z.number().int().min(0).catch(0),
 })
 
 const serverSubcategorySchema = z.object({
@@ -96,6 +97,17 @@ export const serverCategoryDetailSchema = z.object({
 export const serverSubcategoryListSchema = z.object({
   subcategories: z.array(serverSubcategorySchema),
 })
+
+/** Listado global: cada subcategoría con el nombre de su categoría. */
+export const serverSubcategoryRowListSchema = z.object({
+  subcategories: z.array(
+    serverSubcategorySchema.extend({
+      categoryName: z.string().catch('—'),
+      categorySlug: z.string().nullable().catch(null),
+    }),
+  ),
+  pagination: paginationSchema,
+})
 export const serverSubcategoryMutationSchema = z.object({ subcategory: serverSubcategorySchema })
 
 // ---------- Modelo hacia el navegador ----------
@@ -112,7 +124,10 @@ export interface CategoryRow {
   updatedAt: string | null
   subcategoryCount: number
   activeSubcategoryCount: number
+  /** Productos dentro de sus subcategorías. */
   productCount: number
+  /** Productos sin subcategoría: pendientes de clasificar. */
+  unclassifiedProductCount: number
 }
 
 export interface CategoryList {
@@ -132,6 +147,16 @@ export interface SubcategoryRow {
   createdAt: string | null
   updatedAt: string | null
   productCount: number
+}
+
+export interface SubcategoryListRow extends SubcategoryRow {
+  categoryName: string
+  categorySlug: string | null
+}
+
+export interface SubcategoryList {
+  items: SubcategoryListRow[]
+  pagination: AdminPaginationMeta
 }
 
 export interface CategoryDetail {

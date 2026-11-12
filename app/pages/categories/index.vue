@@ -51,6 +51,9 @@
           </template>
           <template #cell-productCount="{ row }">
             <BaseBadge :tone="row.productCount ? 'neutral' : 'warning'">{{ row.productCount }}</BaseBadge>
+            <p v-if="row.unclassifiedProductCount" class="mt-0.5 text-[12px] text-status-warning">
+              {{ row.unclassifiedProductCount }} sin subcategoría
+            </p>
           </template>
           <template #cell-sortOrder="{ row }">
             <span class="tabular-nums text-lumia-ink/70">{{ row.sortOrder }}</span>
