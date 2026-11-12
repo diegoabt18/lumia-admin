@@ -12,16 +12,7 @@ export default defineEventHandler(async (event): Promise<CategoryList> => {
       await serverApi(event, '/api/admin/categories', { query }),
       'GET /admin/categories',
     )
-    return {
-      items: data.categories.map((c) => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug,
-        createdAt: c.createdAt ?? null,
-        productCount: c.productCount,
-      })),
-      pagination: data.pagination,
-    }
+    return { items: data.categories, pagination: data.pagination }
   } catch (error) {
     toBffError(error)
   }

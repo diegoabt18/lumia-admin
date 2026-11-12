@@ -45,7 +45,8 @@ const slugTouched = ref(false)
 const initialValues = {
   name: '',
   slug: '',
-  categorySlug: '',
+  categoryId: '',
+  subcategoryId: '',
   brand: '',
   status: 'active' as const,
   taxRate: '',
@@ -58,13 +59,14 @@ const { defineField, errors, handleSubmit, isSubmitting, resetForm, setErrors } 
 })
 const [name] = defineField('name')
 const [slug] = defineField('slug')
-const [categorySlug] = defineField('categorySlug')
+const [categoryId] = defineField('categoryId')
+const [subcategoryId] = defineField('subcategoryId')
 const [brand] = defineField('brand')
 const [status] = defineField('status')
 const [taxRate] = defineField('taxRate')
 const [description] = defineField('description')
 /** Objeto plano con refs: el template no las desenvuelve al pasarlo como prop. */
-const formFields = { name, slug, categorySlug, brand, status, taxRate, description }
+const formFields = { name, slug, categoryId, subcategoryId, brand, status, taxRate, description }
 
 watch(open, (value) => {
   if (!value) return
@@ -90,6 +92,7 @@ const onSubmit = handleSubmit(async (values) => {
   } catch (error) {
     const ui = toUiError(error)
     if (ui.status === 409) setErrors({ slug: ui.message })
+    else if (ui.status === 400 && /subcategor|categor/i.test(ui.message)) setErrors({ subcategoryId: ui.message })
     else formError.value = ui.message
   }
 })

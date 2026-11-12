@@ -90,7 +90,7 @@ const props = defineProps<{
   fields: {
     name: Ref<string | undefined>
     description: Ref<string | undefined>
-    categorySlug: Ref<string | undefined>
+    subcategoryId: Ref<string | undefined>
     brand: Ref<string | undefined>
     taxRate: Ref<string | undefined>
   }
@@ -117,7 +117,7 @@ const hasDescription = computed(() => (props.fields.description.value ?? '').tri
 const missing = computed(() => {
   const list: string[] = []
   if (!hasDescription.value) list.push('descripción')
-  if (!props.fields.categorySlug.value) list.push('categoría')
+  if (!props.fields.subcategoryId.value) list.push('subcategoría')
   if (!props.fields.brand.value) list.push('marca')
   if (!props.fields.taxRate.value) list.push('IVA')
   return list

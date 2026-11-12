@@ -118,7 +118,7 @@ const promotionOptions = computed(() => {
   return list
 })
 const categorySelect = computed(() => {
-  const list = [...categoryOptions.value]
+  const list = categoryOptions.value.map((o) => ({ value: o.value, label: o.label }))
   const current = form.categorySlug
   if (current && !list.some((o) => o.value === current)) list.unshift({ value: current, label: `${current} (no encontrada)` })
   return list

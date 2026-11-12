@@ -35,7 +35,8 @@
               :fields="formFields"
               :errors="errors"
               :disabled="!canUpdate || isSubmitting"
-              :current-category-slug="product.categorySlug"
+              :current-category-id="product.categoryId"
+              :current-subcategory-id="product.subcategoryId"
             />
             <div v-if="canUpdate" class="mt-6 flex items-center justify-end gap-3 border-t border-lumia-ink/[0.06] pt-5">
               <span v-if="formDirty" class="text-[12px] text-lumia-ink/50">Cambios sin guardar</span>
@@ -201,13 +202,14 @@ const { defineField, errors, handleSubmit, isSubmitting, resetForm, setErrors, m
 })
 const [name] = defineField('name')
 const [slug] = defineField('slug')
-const [categorySlug] = defineField('categorySlug')
+const [categoryId] = defineField('categoryId')
+const [subcategoryId] = defineField('subcategoryId')
 const [brand] = defineField('brand')
 const [status] = defineField('status')
 const [taxRate] = defineField('taxRate')
 const [description] = defineField('description')
 /** Objeto plano con refs: el template no las desenvuelve al pasarlo como prop. */
-const formFields = { name, slug, categorySlug, brand, status, taxRate, description }
+const formFields = { name, slug, categoryId, subcategoryId, brand, status, taxRate, description }
 
 // ---------- Ejes de opciones ----------
 const optionAxes = ref<OptionAxis[]>([])
@@ -219,7 +221,8 @@ function resetFromProduct() {
     values: {
       name: p.name,
       slug: p.slug,
-      categorySlug: p.categorySlug ?? '',
+      categoryId: p.categoryId ?? '',
+      subcategoryId: p.subcategoryId ?? '',
       brand: p.brand ?? '',
       status: p.status,
       taxRate: p.taxRate === null ? '' : String(p.taxRate),
@@ -249,7 +252,9 @@ function buildPatch(values: ReturnType<typeof productFormSchema.parse>, p: Produ
   const patch: Record<string, unknown> = {}
   if (values.name !== p.name) patch.name = values.name
   if (values.description !== (p.description ?? '')) patch.description = values.description || null
-  if (values.categorySlug !== (p.categorySlug ?? '')) patch.category_slug = values.categorySlug || null
+  if (values.subcategoryId && values.subcategoryId !== (p.subcategoryId ?? '')) {
+    patch.subcategory_id = values.subcategoryId
+  }
   if (values.brand !== (p.brand ?? '')) patch.brand = values.brand || null
   if (values.status !== p.status) patch.status = values.status
   const tax = values.taxRate === '' ? null : Number(values.taxRate)
@@ -283,7 +288,7 @@ const onSubmit = handleSubmit(async (values) => {
     await refresh()
   } catch (e) {
     const ui = toUiError(e)
-    if (ui.status === 400 && /categor/i.test(ui.message)) setErrors({ categorySlug: ui.message })
+    if (ui.status === 400 && /subcategor|categor/i.test(ui.message)) setErrors({ subcategoryId: ui.message })
     else toast.error('No se pudo guardar', ui.message)
   }
 })

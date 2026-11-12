@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { AdminPaginationMeta } from '../contracts/api'
-import { isoDate, paginationSchema, slugField } from './common'
+import { OBJECT_ID_PATTERN, isoDate, paginationSchema, slugField } from './common'
 import type { OptionAxis } from './variants'
 
 /**
@@ -29,7 +29,10 @@ export const productFormSchema = z.object({
     .min(1, 'Ingresa el nombre.')
     .max(200, 'Máximo 200 caracteres.'),
   slug: slugField,
-  categorySlug: z.string().max(120),
+  /** Solo para filtrar el selector de subcategoría; no se envía al Server. */
+  categoryId: z.string().max(40),
+  /** Obligatoria: el Server deriva la categoría desde la subcategoría. */
+  subcategoryId: z.string().regex(OBJECT_ID_PATTERN, 'Selecciona una subcategoría.'),
   brand: z.string().trim().max(120, 'Máximo 120 caracteres.'),
   status: z.enum(['active', 'inactive']),
   taxRate: taxRateText,
@@ -43,7 +46,7 @@ export const productCreateBodySchema = z.object({
   name: z.string().trim().min(1).max(200),
   slug: slugField,
   description: z.string().max(8000).optional(),
-  category_slug: z.string().max(120).optional(),
+  subcategory_id: z.string().regex(OBJECT_ID_PATTERN),
   brand: z.string().max(120).optional(),
   status: z.enum(['active', 'inactive']).optional(),
   tax_rate: z.number().min(0).max(100).nullable().optional(),
@@ -54,7 +57,7 @@ export const productPatchBodySchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
     description: z.string().max(8000).nullable().optional(),
-    category_slug: z.string().max(120).nullable().optional(),
+    subcategory_id: z.string().regex(OBJECT_ID_PATTERN).optional(),
     brand: z.string().max(120).nullable().optional(),
     status: z.enum(['active', 'inactive']).optional(),
     tax_rate: z.number().min(0).max(100).nullable().optional(),
@@ -86,7 +89,7 @@ export function toProductCreateBody(v: ProductFormValues): ProductCreateBody {
     slug: v.slug,
     status: v.status,
     ...(v.description.trim() ? { description: v.description } : {}),
-    ...(v.categorySlug ? { category_slug: v.categorySlug } : {}),
+    subcategory_id: v.subcategoryId,
     ...(v.brand ? { brand: v.brand } : {}),
     tax_rate: v.taxRate === '' ? null : Number(v.taxRate),
   }
@@ -101,6 +104,10 @@ const serverProductSchema = z.object({
   taxRate: z.number().nullable().catch(null),
   description: z.string().nullable().catch(null),
   categorySlug: z.string().nullable().catch(null),
+  categoryName: z.string().nullable().catch(null),
+  categoryId: z.string().nullable().catch(null),
+  subcategoryId: z.string().nullable().catch(null),
+  subcategoryName: z.string().nullable().catch(null),
   brand: z.string().nullable().catch(null),
   status: z.enum(['active', 'inactive']).catch('active'),
   createdAt: isoDate,
@@ -162,7 +169,10 @@ export interface ProductRow {
   id: string
   name: string
   slug: string
-  categorySlug: string | null
+  categoryId: string | null
+  categoryName: string | null
+  subcategoryId: string | null
+  subcategoryName: string | null
   brand: string | null
   status: ProductStatus
   taxRate: number | null

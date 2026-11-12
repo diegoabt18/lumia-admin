@@ -36,9 +36,11 @@
               <span class="block font-mono text-[11px] text-lumia-ink/45">{{ row.slug }}</span>
             </NuxtLink>
           </template>
-          <template #cell-categorySlug="{ row }">
-            <span v-if="row.categorySlug" class="text-lumia-ink/75">{{ row.categorySlug }}</span>
-            <span v-else class="text-lumia-ink/35">Sin categoría</span>
+          <template #cell-subcategoryName="{ row }">
+            <span v-if="row.subcategoryName" class="text-lumia-ink/75">
+              {{ row.categoryName }} <span class="text-lumia-ink/35" aria-hidden="true">›</span> {{ row.subcategoryName }}
+            </span>
+            <span v-else class="text-lumia-ink/35">Sin subcategoría</span>
           </template>
           <template #cell-status="{ row }">
             <ProductStatusBadge :status="row.status" />
@@ -101,7 +103,7 @@ const { rows, pagination, loading, errorMessage, refresh } = useServerList<Produ
 
 const columns: TableColumn[] = [
   { key: 'name', label: 'Producto' },
-  { key: 'categorySlug', label: 'Categoría' },
+  { key: 'subcategoryName', label: 'Categoría › Subcategoría' },
   { key: 'status', label: 'Estado' },
   { key: 'taxRate', label: 'IVA', align: 'right', class: 'w-24' },
   { key: 'updatedAt', label: 'Actualizado', hideOnMobile: true },

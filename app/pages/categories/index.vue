@@ -1,6 +1,10 @@
 <template>
   <div>
-    <PageHeader eyebrow="Catálogo" title="Categorías" description="Agrupaciones del catálogo visibles en la tienda.">
+    <PageHeader
+      eyebrow="Catálogo"
+      title="Categorías"
+      description="Agrupaciones del catálogo. Cada categoría contiene subcategorías, y los productos se asignan a una subcategoría."
+    >
       <template v-if="canCreate" #actions>
         <BaseButton @click="openCreate">
           <template #icon>
@@ -27,19 +31,34 @@
           :error="errorMessage"
           caption="Categorías"
           :empty-title="table.search.value ? 'Sin coincidencias' : 'Aún no hay categorías'"
-          :empty-description="table.search.value ? 'Prueba con otro término de búsqueda.' : undefined"
+          :empty-description="table.search.value ? 'Prueba con otro término de búsqueda.' : 'Crea la primera categoría para empezar a organizar el catálogo.'"
           @retry="refresh"
         >
           <template #cell-name="{ row }">
-            <span class="font-medium text-lumia-ink">{{ row.name }}</span>
+            <NuxtLink :to="`/categories/${row.id}`" class="font-medium text-lumia-ink hover:underline">
+              {{ row.name }}
+            </NuxtLink>
+            <p v-if="row.description" class="mt-0.5 line-clamp-1 text-[12px] text-lumia-ink/55">{{ row.description }}</p>
           </template>
-          <template #cell-slug="{ row }">
-            <code class="rounded bg-lumia-cream/70 px-1.5 py-0.5 text-[12px] text-lumia-ink/70">{{ row.slug }}</code>
+          <template #cell-status="{ row }">
+            <BaseBadge :tone="row.status === 'active' ? 'positive' : 'neutral'">
+              {{ row.status === 'active' ? 'Activa' : 'Inactiva' }}
+            </BaseBadge>
+          </template>
+          <template #cell-subcategoryCount="{ row }">
+            <span class="tabular-nums text-lumia-ink/80">{{ row.subcategoryCount }}</span>
+            <span v-if="row.subcategoryCount" class="text-[12px] text-lumia-ink/45"> ({{ row.activeSubcategoryCount }} activas)</span>
           </template>
           <template #cell-productCount="{ row }">
             <BaseBadge :tone="row.productCount ? 'neutral' : 'warning'">{{ row.productCount }}</BaseBadge>
           </template>
-          <template v-if="canUpdate || canDelete" #actions="{ row }">
+          <template #cell-sortOrder="{ row }">
+            <span class="tabular-nums text-lumia-ink/70">{{ row.sortOrder }}</span>
+          </template>
+          <template #actions="{ row }">
+            <BaseButton variant="ghost" size="sm" :to="`/categories/${row.id}`">
+              <span class="sr-only md:not-sr-only">Subcategorías</span>
+            </BaseButton>
             <BaseButton v-if="canUpdate" variant="ghost" size="sm" @click="openEdit(row)">
               <template #icon>
                 <IconPencil class="h-4 w-4" stroke-width="1.75" aria-hidden="true" />
@@ -47,12 +66,22 @@
               <span class="sr-only md:not-sr-only">Editar</span>
             </BaseButton>
             <BaseButton
+              v-if="canUpdate"
+              variant="ghost"
+              size="sm"
+              :loading="statusingId === row.id"
+              :disabled="statusingId === row.id"
+              @click="onToggleStatus(row)"
+            >
+              <span class="sr-only md:not-sr-only">{{ row.status === 'active' ? 'Desactivar' : 'Activar' }}</span>
+            </BaseButton>
+            <BaseButton
               v-if="canDelete"
               variant="ghost"
               size="sm"
-              :disabled="row.productCount > 0 || deletingId === row.id"
+              :disabled="!canDeleteRow(row) || deletingId === row.id"
               :loading="deletingId === row.id"
-              :title="row.productCount > 0 ? 'Tiene productos asociados: reasígnalos antes de eliminar' : undefined"
+              :title="deleteBlockReason(row)"
               @click="onDelete(row)"
             >
               <template #icon>
@@ -74,7 +103,7 @@
       </div>
     </BaseCard>
 
-    <CategoryFormDialog v-model:open="dialogOpen" :category="editing" @saved="refresh" />
+    <CategoryFormDialog v-model:open="dialogOpen" kind="category" :item="editing" @saved="refresh" />
   </div>
 </template>
 
@@ -109,13 +138,27 @@ const { rows, pagination, loading, errorMessage, refresh } = useServerList<Categ
 
 const columns: TableColumn[] = [
   { key: 'name', label: 'Nombre' },
-  { key: 'slug', label: 'Slug' },
+  { key: 'status', label: 'Estado', class: 'w-28' },
+  { key: 'subcategoryCount', label: 'Subcategorías', align: 'right', class: 'w-44' },
   { key: 'productCount', label: 'Productos', align: 'right', class: 'w-28' },
+  { key: 'sortOrder', label: 'Orden', align: 'right', class: 'w-20' },
 ]
 
 const dialogOpen = ref(false)
 const editing = ref<CategoryRow | null>(null)
 const deletingId = ref<string | null>(null)
+const statusingId = ref<string | null>(null)
+
+/** La API no permite borrar con subcategorías o productos: la interfaz lo refleja antes de llamar. */
+function canDeleteRow(row: CategoryRow) {
+  return row.subcategoryCount === 0 && row.productCount === 0
+}
+
+function deleteBlockReason(row: CategoryRow): string | undefined {
+  if (row.subcategoryCount > 0) return 'Tiene subcategorías: elimínalas o desactiva la categoría.'
+  if (row.productCount > 0) return 'Tiene productos asignados: desactiva la categoría en su lugar.'
+  return undefined
+}
 
 function openCreate() {
   editing.value = null
@@ -127,8 +170,23 @@ function openEdit(row: CategoryRow) {
   dialogOpen.value = true
 }
 
+async function onToggleStatus(row: CategoryRow) {
+  if (statusingId.value) return
+  const next = row.status === 'active' ? 'inactive' : 'active'
+  statusingId.value = row.id
+  try {
+    await request(`/api/admin/categories/${row.id}/status`, { method: 'PATCH', body: { status: next } })
+    toast.success(next === 'active' ? 'Categoría activada' : 'Categoría desactivada')
+    await refresh()
+  } catch (error) {
+    toast.error('No se pudo cambiar el estado', toUiError(error).message)
+  } finally {
+    statusingId.value = null
+  }
+}
+
 async function onDelete(row: CategoryRow) {
-  if (row.productCount > 0 || deletingId.value) return
+  if (!canDeleteRow(row) || deletingId.value) return
   const ok = await confirm({
     title: `Eliminar "${row.name}"`,
     description: 'La categoría se eliminará de forma permanente. Esta acción no se puede deshacer.',
