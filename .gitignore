@@ -1,0 +1,19 @@
+node_modules
+*.log*
+.nuxt
+.nitro
+.cache
+.output
+.data
+dist
+
+# Entorno (nunca versionar credenciales)
+.env
+.env.*
+!.env.example
+
+# Editores y sistema
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json

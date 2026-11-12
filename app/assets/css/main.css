@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth bg-lumia-canvas text-lumia-ink antialiased;
+  }
+  body {
+    @apply font-sans text-lumia-ink/90;
+  }
+  .font-display {
+    font-family: theme('fontFamily.display');
+  }
+}
+
+@layer components {
+  /* Campo de formulario base (mismo lenguaje que .lumia-field-input de Lumia 2.0). */
+  .lumia-field-input {
+    @apply w-full rounded-xl border border-lumia-ink/[0.12] bg-white/70 px-4 py-2.5 text-sm text-lumia-ink outline-none transition placeholder:text-lumia-ink/35 focus:border-lumia-gold/50 focus:ring-2 focus:ring-lumia-gold/20 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .lumia-field-input--invalid {
+    @apply border-status-danger/60 bg-status-danger-soft/30 focus:border-status-danger focus:ring-status-danger/20;
+  }
+  .lumia-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.2em] text-lumia-gold;
+  }
+}

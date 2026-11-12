@@ -1,0 +1,43 @@
+# =============================================================================
+# Lumia Admin — Docker Compose (uso local, no público)
+#
+# Requisito: el stack del Server ya está levantado (crea la red `server_lumia-network`):
+#   cd ../server && npm run docker:dev:atlas      (o :local / :prod)
+#
+# Luego:
+#   cp .env.example .env      # revisar NUXT_API_BASE_URL según el perfil del Server
+#   docker compose up -d --build
+#   → http://localhost:3100
+#
+# Este archivo NO modifica ni redefine servicios del Server: solo se une a su red.
+# Ver docs/docker.md.
+# =============================================================================
+
+services:
+  admin:
+    build:
+      context: .
+    image: lumia-admin:local
+    container_name: lumia-admin
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3100
+    # Solo loopback del host: el panel no queda expuesto a la red local ni a internet.
+    ports:
+      - '127.0.0.1:${LUMIA_ADMIN_PORT:-3100}:3100'
+    networks:
+      - server-network
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  server-network:
+    # Red creada por el compose del Server (proyecto `server`, red `lumia-network`).
+    external: true
+    name: ${SERVER_DOCKER_NETWORK:-server_lumia-network}
