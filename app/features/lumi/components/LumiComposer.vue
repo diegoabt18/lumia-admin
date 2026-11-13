@@ -1,5 +1,32 @@
 <template>
   <form class="shrink-0 border-t border-lumia-ink/[0.06] bg-white p-3" @submit.prevent="submit">
+    <div class="mb-2 flex flex-wrap items-center gap-2" role="group" aria-label="Opciones de respuesta">
+      <button
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumia-gold/70"
+        :class="lumi.think.value ? 'border-lumia-ink bg-lumia-ink text-lumia-cream' : 'border-lumia-ink/15 bg-white text-lumia-ink/75 hover:bg-lumia-beige/40'"
+        :aria-pressed="lumi.think.value ? 'true' : 'false'"
+        @click="lumi.think.value = !lumi.think.value"
+      >
+        <IconBrain class="h-3.5 w-3.5" stroke-width="1.75" aria-hidden="true" />
+        {{ lumi.think.value ? 'Con razonamiento' : 'Sin razonamiento' }}
+      </button>
+      <span class="ml-1 text-[11px] font-medium text-lumia-ink/55">Longitud</span>
+      <button
+        v-for="length in LUMI_RESPONSE_LENGTHS"
+        :key="length.value"
+        type="button"
+        class="rounded-full border px-3 py-1 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumia-gold/70"
+        :class="lumi.maxTokens.value === length.value ? 'border-lumia-ink bg-lumia-ink text-lumia-cream' : 'border-lumia-ink/15 bg-white text-lumia-ink/75 hover:bg-lumia-beige/40'"
+        :aria-pressed="lumi.maxTokens.value === length.value ? 'true' : 'false'"
+        @click="lumi.maxTokens.value = length.value"
+      >
+        {{ length.label }}
+      </button>
+      <p v-if="lumi.think.value || lumi.maxTokens.value > LUMI_RESPONSE_LENGTHS[0].value" class="w-full text-[11px] leading-snug text-lumia-ink/60">
+        Las respuestas con razonamiento o más largas tardan más en aparecer.
+      </p>
+    </div>
     <div v-if="canUseWeb" class="mb-2 flex flex-wrap items-center gap-2">
       <button
         type="button"
@@ -55,9 +82,9 @@
 </template>
 
 <script setup lang="ts">
-import { IconPlayerStop, IconSend, IconWorldSearch } from '@tabler/icons-vue'
+import { IconBrain, IconPlayerStop, IconSend, IconWorldSearch } from '@tabler/icons-vue'
 import { PERMISSIONS } from '#shared/auth/permissions'
-import { LUMI_MESSAGE_MAX } from '#shared/schemas/lumi'
+import { LUMI_MESSAGE_MAX, LUMI_RESPONSE_LENGTHS } from '#shared/schemas/lumi'
 
 const lumi = useLumi()
 const auth = useAuth()

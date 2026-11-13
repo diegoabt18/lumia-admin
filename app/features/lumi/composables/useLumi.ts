@@ -5,7 +5,7 @@ import type {
   LumiMessage,
   LumiStreamEvent,
 } from '#shared/schemas/lumi'
-import { LUMI_MESSAGE_MAX, lumiStreamEventSchema } from '#shared/schemas/lumi'
+import { LUMI_MESSAGE_MAX, LUMI_RESPONSE_LENGTHS, lumiStreamEventSchema } from '#shared/schemas/lumi'
 import { lumiContextForPath } from '~/features/lumi/utils/context'
 import { parseSseBlock, splitSseBuffer } from '~/features/lumi/utils/sse'
 
@@ -47,6 +47,10 @@ export function useLumi() {
   const activeStream = useState<AbortController | null>('lumi-stream', () => null)
   /** Modo "chat + búsqueda web": solo la pregunta sale a internet, sin contexto de pantalla. */
   const webMode = useState<boolean>('lumi-web-mode', () => false)
+  /** Razonamiento del modelo para los próximos mensajes. Más lento; no se guarda en el navegador. */
+  const think = useState<boolean>('lumi-think', () => false)
+  /** Longitud máxima de la respuesta (tokens) para los próximos mensajes. */
+  const maxTokens = useState<number>('lumi-max-tokens', () => LUMI_RESPONSE_LENGTHS[0].value)
 
   const conversations = useState<LumiConversationSummary[]>('lumi-conversations', () => [])
   const historyLoading = useState<boolean>('lumi-history-loading', () => false)
@@ -91,7 +95,14 @@ export function useLumi() {
    * la forma que entiende toUiError. Una sesión caducada cierra la sesión del admin.
    */
   async function streamChat(
-    body: { message: string; conversationId?: string; context?: LumiContextInput; webSearch?: true },
+    body: {
+      message: string
+      conversationId?: string
+      context?: LumiContextInput
+      webSearch?: true
+      think?: true
+      maxTokens: number
+    },
     signal: AbortSignal,
     onEvent: (event: LumiStreamEvent) => void,
   ): Promise<void> {
@@ -178,6 +189,8 @@ export function useLumi() {
           ...(conversationId.value ? { conversationId: conversationId.value } : {}),
           ...(context ? { context } : {}),
           ...(webMode.value ? { webSearch: true as const } : {}),
+          ...(think.value ? { think: true as const } : {}),
+          maxTokens: maxTokens.value,
         },
         controller.signal,
         (event) => {
@@ -292,6 +305,8 @@ export function useLumi() {
     conversations.value = []
     historyError.value = null
     draft.value = ''
+    think.value = false
+    maxTokens.value = LUMI_RESPONSE_LENGTHS[0].value
     open.value = false
     expanded.value = false
     minimized.value = false
@@ -322,6 +337,8 @@ export function useLumi() {
     historyError,
     pageContext,
     webMode,
+    think,
+    maxTokens,
     send,
     stop,
     retryLast,

@@ -51,8 +51,19 @@ export const lumiChatInputSchema = z
     context: lumiContextSchema.optional(),
     /** Búsqueda web (requiere lumi.web). Solo la pregunta sale a internet. */
     webSearch: z.boolean().optional(),
+    /** Razonamiento del modelo: más lento, con respuestas más cuidadas. */
+    think: z.boolean().optional(),
+    /** Límite de tokens de la respuesta, elegido en el chat. */
+    maxTokens: z.number().int().min(128).max(2048).optional(),
   })
   .strict()
+
+/** Longitudes de respuesta que ofrece el chat. */
+export const LUMI_RESPONSE_LENGTHS = [
+  { value: 512, label: 'Corta' },
+  { value: 1024, label: 'Media' },
+  { value: 2048, label: 'Larga' },
+] as const
 
 export const lumiConversationIdSchema = z.string().uuid()
 
