@@ -32,7 +32,7 @@
           role="status"
         >
           <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-lumia-gold border-t-transparent" aria-hidden="true" />
-          Lumi está pensando…
+          {{ stageLabel(message) }}
         </div>
 
         <div
@@ -65,9 +65,17 @@
         </div>
 
         <div v-else class="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md border border-lumia-ink/10 bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-ink">
+          <p
+            v-if="message.state === 'streaming'"
+            class="mb-1.5 flex items-center gap-2 text-[12px] text-lumia-ink/65"
+            role="status"
+          >
+            <span class="h-3 w-3 animate-spin rounded-full border-2 border-lumia-gold border-t-transparent" aria-hidden="true" />
+            {{ stageLabel(message) }}
+          </p>
           <details v-if="message.thinking" class="mb-2 whitespace-normal rounded-lg bg-lumia-cream/60 px-2.5 py-1.5 text-[12px] text-lumia-ink/70">
             <summary class="cursor-pointer select-none font-medium text-lumia-ink/75">
-              {{ message.state === 'streaming' && !message.content ? 'Razonando…' : 'Ver razonamiento' }}
+              {{ message.state === 'streaming' && !message.content ? 'Proceso de razonamiento en curso' : 'Ver proceso de razonamiento' }}
             </summary>
             <p class="mt-1.5 max-h-60 overflow-y-auto whitespace-pre-wrap break-words leading-relaxed">{{ message.thinking }}</p>
           </details>
@@ -95,6 +103,16 @@ const prompts = computed(() => lumiQuickPrompts(lumi.pageContext.value))
 
 const lumi = useLumi()
 const scroller = ref<HTMLElement | null>(null)
+
+/**
+ * Etapa visible según lo que ha llegado del stream. Son estados reales, no frases que escriba el
+ * modelo: no inventan progreso ni cuestan tokens.
+ */
+function stageLabel(message: { content: string; thinking?: string }): string {
+  if (message.content) return 'Redactando respuesta…'
+  if (message.thinking) return 'Analizando tu mensaje…'
+  return 'Preparando respuesta…'
+}
 
 function usePrompt(prompt: string) {
   lumi.draft.value = prompt

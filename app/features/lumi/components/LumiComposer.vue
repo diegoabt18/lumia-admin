@@ -6,7 +6,7 @@
         class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumia-gold/70"
         :class="lumi.think.value ? 'border-lumia-ink bg-lumia-ink text-lumia-cream' : 'border-lumia-ink/15 bg-white text-lumia-ink/75 hover:bg-lumia-beige/40'"
         :aria-pressed="lumi.think.value ? 'true' : 'false'"
-        @click="lumi.think.value = !lumi.think.value"
+        @click="toggleThink"
       >
         <IconBrain class="h-3.5 w-3.5" stroke-width="1.75" aria-hidden="true" />
         {{ lumi.think.value ? 'Con razonamiento' : 'Sin razonamiento' }}
@@ -92,6 +92,14 @@ const canUseWeb = computed(() => auth.can(PERMISSIONS.LUMI_WEB))
 
 const showCounter = computed(() => lumi.draft.value.length > LUMI_MESSAGE_MAX * 0.75)
 const canSend = computed(() => !lumi.sending.value && lumi.draft.value.trim().length > 0)
+
+/** Con razonamiento, la respuesta necesita margen: al activarlo se pasa a la longitud más larga. */
+function toggleThink() {
+  lumi.think.value = !lumi.think.value
+  if (lumi.think.value) {
+    lumi.maxTokens.value = LUMI_RESPONSE_LENGTHS.reduce((max, length) => Math.max(max, length.value), 0)
+  }
+}
 
 function submit() {
   if (!canSend.value) return
