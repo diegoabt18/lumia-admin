@@ -1,15 +1,16 @@
 <template>
   <form class="shrink-0 border-t border-lumia-ink/[0.06] bg-white p-3" @submit.prevent="submit">
     <div class="mb-2 flex flex-wrap items-center gap-2" role="group" aria-label="Opciones de respuesta">
+      <span class="text-[11px] font-medium text-lumia-ink/55">Razonamiento</span>
       <button
+        v-for="option in REASONING_OPTIONS"
+        :key="option.value"
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumia-gold/70"
-        :class="lumi.think.value ? 'border-lumia-ink bg-lumia-ink text-lumia-cream' : 'border-lumia-ink/15 bg-white text-lumia-ink/75 hover:bg-lumia-beige/40'"
-        :aria-pressed="lumi.think.value ? 'true' : 'false'"
-        @click="toggleThink"
+        :class="chipClass(lumi.reasoningMode.value === option.value)"
+        :aria-pressed="lumi.reasoningMode.value === option.value ? 'true' : 'false'"
+        @click="setReasoning(option.value)"
       >
-        <IconBrain class="h-3.5 w-3.5" stroke-width="1.75" aria-hidden="true" />
-        {{ lumi.think.value ? 'Con razonamiento' : 'Sin razonamiento' }}
+        {{ option.label }}
       </button>
       <span class="ml-1 text-[11px] font-medium text-lumia-ink/55">Longitud</span>
       <button
@@ -23,23 +24,24 @@
       >
         {{ length.label }}
       </button>
-      <p v-if="lumi.think.value || lumi.maxTokens.value > LUMI_RESPONSE_LENGTHS[0].value" class="w-full text-[11px] leading-snug text-lumia-ink/60">
+      <p v-if="lumi.reasoningMode.value === 'on' || lumi.maxTokens.value > LUMI_RESPONSE_LENGTHS[0].value" class="w-full text-[11px] leading-snug text-lumia-ink/60">
         Las respuestas con razonamiento o más largas tardan más en aparecer.
       </p>
     </div>
-    <div v-if="canUseWeb" class="mb-2 flex flex-wrap items-center gap-2">
+    <div v-if="canUseWeb" class="mb-2 flex flex-wrap items-center gap-2" role="group" aria-label="Búsqueda web">
+      <span class="text-[11px] font-medium text-lumia-ink/55">Búsqueda web</span>
       <button
+        v-for="option in WEB_OPTIONS"
+        :key="option.value"
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumia-gold/70"
-        :class="lumi.webMode.value ? 'border-lumia-ink bg-lumia-ink text-lumia-cream' : 'border-lumia-ink/15 bg-white text-lumia-ink/75 hover:bg-lumia-beige/40'"
-        :aria-pressed="lumi.webMode.value ? 'true' : 'false'"
-        @click="lumi.webMode.value = !lumi.webMode.value"
+        :class="chipClass(lumi.webMode.value === option.value)"
+        :aria-pressed="lumi.webMode.value === option.value ? 'true' : 'false'"
+        @click="lumi.webMode.value = option.value"
       >
-        <IconWorldSearch class="h-3.5 w-3.5" stroke-width="1.75" aria-hidden="true" />
-        {{ lumi.webMode.value ? 'Chat + búsqueda web' : 'Solo chat' }}
+        {{ option.label }}
       </button>
-      <p v-if="lumi.webMode.value" class="text-[11px] leading-snug text-lumia-ink/60">
-        Solo tu pregunta sale a internet. No se consultan datos de la tienda.
+      <p v-if="lumi.webMode.value !== 'off'" class="w-full text-[11px] leading-snug text-lumia-ink/60">
+        Si se usa, solo tu pregunta sale a internet. No se consultan datos de la tienda.
       </p>
     </div>
     <label for="lumi-input" class="sr-only">Mensaje para Lumi</label>
@@ -82,9 +84,22 @@
 </template>
 
 <script setup lang="ts">
-import { IconBrain, IconPlayerStop, IconSend, IconWorldSearch } from '@tabler/icons-vue'
+import { IconPlayerStop, IconSend } from '@tabler/icons-vue'
 import { PERMISSIONS } from '#shared/auth/permissions'
 import { LUMI_MESSAGE_MAX, LUMI_RESPONSE_LENGTHS } from '#shared/schemas/lumi'
+import type { LumiMode } from '~/features/lumi/composables/useLumi'
+
+const REASONING_OPTIONS = [
+  { value: 'auto', label: 'Automático' },
+  { value: 'on', label: 'Activado' },
+  { value: 'off', label: 'Desactivado' },
+] as const satisfies ReadonlyArray<{ value: LumiMode; label: string }>
+
+const WEB_OPTIONS = [
+  { value: 'auto', label: 'Automática' },
+  { value: 'on', label: 'Activada' },
+  { value: 'off', label: 'Desactivada' },
+] as const satisfies ReadonlyArray<{ value: LumiMode; label: string }>
 
 const lumi = useLumi()
 const auth = useAuth()
@@ -93,12 +108,16 @@ const canUseWeb = computed(() => auth.can(PERMISSIONS.LUMI_WEB))
 const showCounter = computed(() => lumi.draft.value.length > LUMI_MESSAGE_MAX * 0.75)
 const canSend = computed(() => !lumi.sending.value && lumi.draft.value.trim().length > 0)
 
-/** Con razonamiento, la respuesta necesita margen: al activarlo se pasa a la longitud más larga. */
-function toggleThink() {
-  lumi.think.value = !lumi.think.value
-  if (lumi.think.value) {
-    lumi.maxTokens.value = LUMI_RESPONSE_LENGTHS.reduce((max, length) => Math.max(max, length.value), 0)
-  }
+const LONGEST_LENGTH = LUMI_RESPONSE_LENGTHS.reduce((max, length) => Math.max(max, length.value), 0)
+
+/** Con razonamiento activado, la respuesta necesita margen: se pasa a la longitud más larga. */
+function setReasoning(mode: LumiMode) {
+  lumi.reasoningMode.value = mode
+  if (mode === 'on') lumi.maxTokens.value = LONGEST_LENGTH
+}
+
+function chipClass(active: boolean): string {
+  return `rounded-full border px-3 py-1 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumia-gold/70 ${active ? 'border-lumia-ink bg-lumia-ink text-lumia-cream' : 'border-lumia-ink/15 bg-white text-lumia-ink/75 hover:bg-lumia-beige/40'}`
 }
 
 function submit() {

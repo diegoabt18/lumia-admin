@@ -66,6 +66,12 @@
 
         <div v-else class="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md border border-lumia-ink/10 bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-ink">
           <p
+            v-if="message.webSearch"
+            class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-lumia-beige/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-lumia-ink/70"
+          >
+            Búsqueda web
+          </p>
+          <p
             v-if="message.state === 'streaming'"
             class="mb-1.5 flex items-center gap-2 text-[12px] text-lumia-ink/65"
             role="status"

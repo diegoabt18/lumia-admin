@@ -17,9 +17,12 @@ export interface LumiViewMessage {
   state: 'done' | 'pending' | 'streaming' | 'stopped' | 'failed'
   /** Razonamiento del modelo, solo para mostrar. No se guarda en el historial. */
   thinking?: string
+  /** Pregunta enviada con búsqueda web activa. Solo para mostrar. */
+  webSearch?: boolean
 }
 
 export type LumiView = 'chat' | 'history'
+export type LumiMode = 'auto' | 'on' | 'off'
 export type LumiConnection = 'idle' | 'ok' | 'error'
 
 const HISTORY_LIMIT = 50
@@ -47,10 +50,12 @@ export function useLumi() {
   const connection = useState<LumiConnection>('lumi-connection', () => 'idle')
   const generation = useState<number>('lumi-generation', () => 0)
   const activeStream = useState<AbortController | null>('lumi-stream', () => null)
-  /** Modo "chat + búsqueda web": solo la pregunta sale a internet, sin contexto de pantalla. */
-  const webMode = useState<boolean>('lumi-web-mode', () => false)
-  /** Razonamiento del modelo para los próximos mensajes. Más lento; no se guarda en el navegador. */
-  const think = useState<boolean>('lumi-think', () => false)
+  /**
+   * Controles del chat. "auto" deja la decisión al servidor; "on"/"off" la fuerzan.
+   * En búsqueda web, solo la pregunta sale a internet, sin contexto de pantalla.
+   */
+  const webMode = useState<LumiMode>('lumi-web-mode', () => 'auto')
+  const reasoningMode = useState<LumiMode>('lumi-reasoning-mode', () => 'auto')
   /** Longitud máxima de la respuesta (tokens) para los próximos mensajes. */
   const maxTokens = useState<number>('lumi-max-tokens', () => LUMI_RESPONSE_LENGTHS[0].value)
 
@@ -101,8 +106,8 @@ export function useLumi() {
       message: string
       conversationId?: string
       context?: LumiContextInput
-      webSearch?: true
-      think?: true
+      reasoningMode: LumiMode
+      webMode: LumiMode
       maxTokens: number
     },
     signal: AbortSignal,
@@ -178,7 +183,7 @@ export function useLumi() {
 
     // El contexto se toma al enviar: refleja la pantalla en la que el administrador escribió.
     // En modo web no se envía ningún contexto: solo la pregunta.
-    const context = webMode.value ? undefined : (pageContext.value ?? undefined)
+    const context = webMode.value === 'on' ? undefined : (pageContext.value ?? undefined)
     const controller = new AbortController()
     activeStream.value = controller
     let answer = ''
@@ -191,14 +196,16 @@ export function useLumi() {
           message: content,
           ...(conversationId.value ? { conversationId: conversationId.value } : {}),
           ...(context ? { context } : {}),
-          ...(webMode.value ? { webSearch: true as const } : {}),
-          ...(think.value ? { think: true as const } : {}),
+          reasoningMode: reasoningMode.value,
+          webMode: webMode.value,
           maxTokens: maxTokens.value,
         },
         controller.signal,
         (event) => {
           if (gen !== generation.value) return
-          if (event.type === 'thinking') {
+          if (event.type === 'mode') {
+            replaceMessage(pendingKey, { webSearch: event.webSearch })
+          } else if (event.type === 'thinking') {
             thinking += event.text
             replaceMessage(pendingKey, { thinking, state: 'streaming' })
           } else if (event.type === 'token') {
@@ -311,7 +318,8 @@ export function useLumi() {
     conversations.value = []
     historyError.value = null
     draft.value = ''
-    think.value = false
+    reasoningMode.value = 'auto'
+    webMode.value = 'auto'
     maxTokens.value = LUMI_RESPONSE_LENGTHS[0].value
     open.value = false
     expanded.value = false
@@ -343,7 +351,7 @@ export function useLumi() {
     historyError,
     pageContext,
     webMode,
-    think,
+    reasoningMode,
     maxTokens,
     send,
     stop,

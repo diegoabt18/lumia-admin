@@ -49,10 +49,13 @@ export const lumiChatInputSchema = z
     message: z.string().trim().min(1, 'Escribe un mensaje.').max(LUMI_MESSAGE_MAX, `Máximo ${LUMI_MESSAGE_MAX} caracteres.`),
     conversationId: z.string().uuid().optional(),
     context: lumiContextSchema.optional(),
-    /** Búsqueda web (requiere lumi.web). Solo la pregunta sale a internet. */
+    /** Campo previo; `webMode` lo sustituye. */
     webSearch: z.boolean().optional(),
-    /** Razonamiento del modelo: más lento, con respuestas más cuidadas. */
+    /** Campo previo; `reasoningMode` lo sustituye. */
     think: z.boolean().optional(),
+    /** Controles del chat: automático (lo decide el servidor), activado o desactivado. */
+    reasoningMode: z.enum(['auto', 'on', 'off']).optional(),
+    webMode: z.enum(['auto', 'on', 'off']).optional(),
     /** Límite de tokens de la respuesta, elegido en el chat. */
     maxTokens: z.number().int().min(128).max(2048).optional(),
   })
@@ -112,6 +115,7 @@ export type LumiMessage = LumiConversationDetail['messages'][number]
 /** Eventos del stream SSE (`/api/admin/lumi/chat/stream`). Cada evento lleva `type` y su carga. */
 export const lumiStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('start'), conversationId: z.string().uuid() }),
+  z.object({ type: z.literal('mode'), webSearch: z.boolean(), reasoning: z.boolean() }),
   z.object({ type: z.literal('thinking'), text: z.string() }),
   z.object({ type: z.literal('token'), text: z.string() }),
   z.object({ type: z.literal('done'), conversationId: z.string().uuid() }),
