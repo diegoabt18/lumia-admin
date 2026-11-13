@@ -49,6 +49,8 @@ export const lumiChatInputSchema = z
     message: z.string().trim().min(1, 'Escribe un mensaje.').max(LUMI_MESSAGE_MAX, `Máximo ${LUMI_MESSAGE_MAX} caracteres.`),
     conversationId: z.string().uuid().optional(),
     context: lumiContextSchema.optional(),
+    /** Búsqueda web (requiere lumi.web). Solo la pregunta sale a internet. */
+    webSearch: z.boolean().optional(),
   })
   .strict()
 

@@ -66,6 +66,7 @@ export const PERMISSIONS = {
   EQUIVALENCES_UPDATE: 'equivalences.update',
   EQUIVALENCES_DELETE: 'equivalences.delete',
   LUMI_USE: 'lumi.use',
+  LUMI_WEB: 'lumi.web',
 } as const
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

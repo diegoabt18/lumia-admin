@@ -45,6 +45,8 @@ export function useLumi() {
   const connection = useState<LumiConnection>('lumi-connection', () => 'idle')
   const generation = useState<number>('lumi-generation', () => 0)
   const activeStream = useState<AbortController | null>('lumi-stream', () => null)
+  /** Modo "chat + búsqueda web": solo la pregunta sale a internet, sin contexto de pantalla. */
+  const webMode = useState<boolean>('lumi-web-mode', () => false)
 
   const conversations = useState<LumiConversationSummary[]>('lumi-conversations', () => [])
   const historyLoading = useState<boolean>('lumi-history-loading', () => false)
@@ -89,7 +91,7 @@ export function useLumi() {
    * la forma que entiende toUiError. Una sesión caducada cierra la sesión del admin.
    */
   async function streamChat(
-    body: { message: string; conversationId?: string; context?: LumiContextInput },
+    body: { message: string; conversationId?: string; context?: LumiContextInput; webSearch?: true },
     signal: AbortSignal,
     onEvent: (event: LumiStreamEvent) => void,
   ): Promise<void> {
@@ -162,7 +164,8 @@ export function useLumi() {
     sending.value = true
 
     // El contexto se toma al enviar: refleja la pantalla en la que el administrador escribió.
-    const context = pageContext.value ?? undefined
+    // En modo web no se envía ningún contexto: solo la pregunta.
+    const context = webMode.value ? undefined : (pageContext.value ?? undefined)
     const controller = new AbortController()
     activeStream.value = controller
     let answer = ''
@@ -174,6 +177,7 @@ export function useLumi() {
           message: content,
           ...(conversationId.value ? { conversationId: conversationId.value } : {}),
           ...(context ? { context } : {}),
+          ...(webMode.value ? { webSearch: true as const } : {}),
         },
         controller.signal,
         (event) => {
@@ -317,6 +321,7 @@ export function useLumi() {
     historyLoading,
     historyError,
     pageContext,
+    webMode,
     send,
     stop,
     retryLast,
