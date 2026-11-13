@@ -242,7 +242,8 @@ const optionAxesChanged = computed(() => {
   return currentJson !== newJson
 })
 
-const formDirty = computed(() => meta.dirty || optionAxesChanged.value)
+// `meta` es un ComputedRef en vee-validate: hay que leer `.value` (meta.dirty siempre era undefined).
+const formDirty = computed(() => meta.value.dirty || optionAxesChanged.value)
 
 /** Asistente de contenido: solo con lumi.use (el Server vuelve a autorizar cada petición). */
 const canUseLumi = computed(() => auth.can(PERMISSIONS.LUMI_USE))
