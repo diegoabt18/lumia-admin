@@ -90,11 +90,15 @@
 
           <BaseCard title="Permisos" :description="permissionsDescription">
             <PermissionPicker
+              v-if="catalogGroups.length"
               v-model="form.permissionKeys"
+              :groups="catalogGroups"
               :original="role.permissionKeys"
               :grantable="auth.session.value?.permissions ?? []"
               :disabled="!editable || role.isSystem || saving"
             />
+            <p v-else-if="catalogError" class="text-[13px] text-status-danger">{{ catalogError }}</p>
+            <p v-else class="text-[13px] text-lumia-ink/60">Cargando permisos…</p>
             <p v-if="fieldErrors.permissionKeys" class="mt-3 text-[12px] text-status-danger">{{ fieldErrors.permissionKeys }}</p>
           </BaseCard>
         </div>
@@ -168,7 +172,12 @@
 <script setup lang="ts">
 import { IconArchive, IconArchiveOff, IconCopy, IconTrash } from '@tabler/icons-vue'
 import { PERMISSIONS } from '#shared/auth/permissions'
-import { rolePatchBodySchema, type RoleDetail } from '#shared/schemas/roles'
+import {
+  groupPermissionCatalog,
+  rolePatchBodySchema,
+  type PermissionCatalogItem,
+  type RoleDetail,
+} from '#shared/schemas/roles'
 
 definePageMeta({
   layout: 'admin',
@@ -191,6 +200,14 @@ const { data: role, status, error, refresh } = useAsyncData<RoleDetail>(
   () => request<RoleDetail>(`/api/admin/roles/${id.value}`),
 )
 const loading = computed(() => status.value === 'pending')
+
+/** Catálogo de permisos desde el Server: la base manda, no una lista fija en el código. */
+const { data: catalog, error: catalogErr } = useAsyncData<{ items: PermissionCatalogItem[] }>(
+  'admin-permission-catalog',
+  () => request<{ items: PermissionCatalogItem[] }>('/api/admin/permissions'),
+)
+const catalogGroups = computed(() => groupPermissionCatalog(catalog.value?.items ?? []))
+const catalogError = computed(() => (catalogErr.value ? toUiError(catalogErr.value).message : null))
 const loadError = computed(() => (error.value ? toUiError(error.value) : null))
 
 useHead({ title: () => (role.value ? `${role.value.name} · Lumia Admin` : 'Rol · Lumia Admin') })

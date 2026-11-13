@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { PERMISSIONS, type PermissionId } from '../auth/permissions'
 import { isoDate, paginationSchema } from './common'
 
 /**
@@ -90,8 +89,6 @@ export interface RoleDetail extends RoleRow {
 
 // ---------- Entrada ----------
 
-const ALL_PERMISSION_IDS = Object.values(PERMISSIONS) as [PermissionId, ...PermissionId[]]
-
 /** Clave técnica del rol: estable y legible. Más estricta que el Server (2 a 64 caracteres libres). */
 export const ROLE_KEY_PATTERN = /^[a-z][a-z0-9_-]{1,63}$/
 
@@ -108,10 +105,14 @@ const roleName = z
 
 const roleDescription = z.string().trim().max(500, 'Máximo 500 caracteres.')
 
-/** Solo permisos conocidos (sin comodín `*`), sin duplicados. */
+/**
+ * Claves del catálogo de permisos (colección `permissions` del Server). La base manda: el BFF no
+ * conoce la lista; el Server rechaza las claves que no existan en el catálogo.
+ */
+export const PERMISSION_KEY_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/
 const permissionKeys = z
-  .array(z.enum(ALL_PERMISSION_IDS, { errorMap: () => ({ message: 'Permiso desconocido.' }) }))
-  .max(ALL_PERMISSION_IDS.length)
+  .array(z.string().regex(PERMISSION_KEY_PATTERN, 'Permiso con formato inválido.').max(120))
+  .max(500)
   .transform((keys) => [...new Set(keys)].sort())
 
 export const roleCreateBodySchema = z
@@ -162,21 +163,36 @@ export const PERMISSION_GROUP_LABELS: Record<string, string> = {
   cart: 'Carrito (tienda)',
 }
 
+/** Permiso del catálogo tal como lo devuelve el BFF (`GET /api/admin/permissions`). */
+export const permissionCatalogItemSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  description: z.string(),
+  moduleKey: z.string().nullable(),
+  isActive: z.boolean(),
+})
+export const permissionCatalogSchema = z.object({ items: z.array(permissionCatalogItemSchema) })
+export type PermissionCatalogItem = z.infer<typeof permissionCatalogItemSchema>
+
 export interface PermissionGroup {
   key: string
   label: string
-  permissions: PermissionId[]
+  permissions: string[]
 }
 
-/** Permisos conocidos agrupados por módulo, en el orden de PERMISSION_GROUP_LABELS. */
-export function groupPermissions(): PermissionGroup[] {
-  const groups = new Map<string, PermissionId[]>()
-  for (const id of ALL_PERMISSION_IDS) {
-    const prefix = id.split('.')[0] ?? id
-    groups.set(prefix, [...(groups.get(prefix) ?? []), id])
+/** Agrupa el catálogo por módulo (`moduleKey`, o el prefijo de la clave si falta), en orden de etiquetas. */
+export function groupPermissionCatalog(items: readonly PermissionCatalogItem[]): PermissionGroup[] {
+  const groups = new Map<string, string[]>()
+  for (const item of items) {
+    const moduleKey = item.moduleKey || item.key.split('.')[0] || 'otros'
+    groups.set(moduleKey, [...(groups.get(moduleKey) ?? []), item.key])
   }
   const order = Object.keys(PERMISSION_GROUP_LABELS)
   return [...groups.entries()]
-    .sort(([a], [b]) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99))
-    .map(([key, permissions]) => ({ key, label: PERMISSION_GROUP_LABELS[key] ?? key, permissions }))
+    .sort(([a], [b]) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99) || a.localeCompare(b))
+    .map(([key, permissions]) => ({
+      key,
+      label: PERMISSION_GROUP_LABELS[key] ?? key,
+      permissions: permissions.sort(),
+    }))
 }

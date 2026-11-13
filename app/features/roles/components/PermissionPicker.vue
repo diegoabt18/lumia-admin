@@ -41,21 +41,25 @@
 
 <script setup lang="ts">
 import { PERMISSION_WILDCARD } from '#shared/auth/permissions'
-import { groupPermissions } from '#shared/schemas/roles'
+import type { PermissionGroup } from '#shared/schemas/roles'
 
 /**
- * Selector de permisos por módulo. Solo se pueden MARCAR permisos que quien edita tiene
- * (`grantable`) o que el rol ya tenía (`original`); desmarcar siempre está permitido.
- * Misma regla que aplica el BFF (assertNoEscalation).
+ * Selector de permisos por módulo. Los grupos vienen del catálogo del Server (`groups`).
+ * Solo se pueden MARCAR permisos que quien edita tiene (`grantable`) o que el rol ya tenía
+ * (`original`); desmarcar siempre está permitido. Misma regla que aplica el BFF (assertNoEscalation).
  */
 const props = withDefaults(
-  defineProps<{ original?: readonly string[]; grantable: readonly string[]; disabled?: boolean }>(),
+  defineProps<{
+    groups: readonly PermissionGroup[]
+    original?: readonly string[]
+    grantable: readonly string[]
+    disabled?: boolean
+  }>(),
   { original: () => [], disabled: false },
 )
 const model = defineModel<string[]>({ required: true })
 
 const baseId = useId()
-const groups = groupPermissions()
 const selected = computed(() => new Set(model.value))
 const grantableSet = computed(() =>
   props.grantable.includes(PERMISSION_WILDCARD) ? null : new Set([...props.grantable, ...props.original]),
