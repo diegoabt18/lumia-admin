@@ -112,6 +112,7 @@ export type LumiMessage = LumiConversationDetail['messages'][number]
 /** Eventos del stream SSE (`/api/admin/lumi/chat/stream`). Cada evento lleva `type` y su carga. */
 export const lumiStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('start'), conversationId: z.string().uuid() }),
+  z.object({ type: z.literal('thinking'), text: z.string() }),
   z.object({ type: z.literal('token'), text: z.string() }),
   z.object({ type: z.literal('done'), conversationId: z.string().uuid() }),
   z.object({ type: z.literal('error'), message: z.string() }),

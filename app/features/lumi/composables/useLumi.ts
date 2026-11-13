@@ -15,6 +15,8 @@ export interface LumiViewMessage {
   role: 'user' | 'assistant'
   content: string
   state: 'done' | 'pending' | 'streaming' | 'stopped' | 'failed'
+  /** Razonamiento del modelo, solo para mostrar. No se guarda en el historial. */
+  thinking?: string
 }
 
 export type LumiView = 'chat' | 'history'
@@ -180,6 +182,7 @@ export function useLumi() {
     const controller = new AbortController()
     activeStream.value = controller
     let answer = ''
+    let thinking = ''
     let finished = false
 
     try {
@@ -195,7 +198,10 @@ export function useLumi() {
         controller.signal,
         (event) => {
           if (gen !== generation.value) return
-          if (event.type === 'token') {
+          if (event.type === 'thinking') {
+            thinking += event.text
+            replaceMessage(pendingKey, { thinking, state: 'streaming' })
+          } else if (event.type === 'token') {
             answer += event.text
             replaceMessage(pendingKey, { content: answer, state: 'streaming' })
           } else if (event.type === 'done') {

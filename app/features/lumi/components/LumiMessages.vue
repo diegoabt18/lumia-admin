@@ -65,6 +65,12 @@
         </div>
 
         <div v-else class="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md border border-lumia-ink/10 bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-ink">
+          <details v-if="message.thinking" class="mb-2 whitespace-normal rounded-lg bg-lumia-cream/60 px-2.5 py-1.5 text-[12px] text-lumia-ink/70">
+            <summary class="cursor-pointer select-none font-medium text-lumia-ink/75">
+              {{ message.state === 'streaming' && !message.content ? 'Razonando…' : 'Ver razonamiento' }}
+            </summary>
+            <p class="mt-1.5 max-h-60 overflow-y-auto whitespace-pre-wrap break-words leading-relaxed">{{ message.thinking }}</p>
+          </details>
           <span class="sr-only">Lumi: </span>{{ message.content }}
           <span
             v-if="message.state === 'streaming'"
