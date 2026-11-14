@@ -16,6 +16,8 @@
 
     <EnvironmentBadge :environment="environment" />
 
+    <NotificationCenter />
+
     <div class="relative">
       <button
         ref="userButton"

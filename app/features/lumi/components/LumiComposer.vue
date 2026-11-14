@@ -1,6 +1,20 @@
 <template>
   <form class="shrink-0 border-t border-lumia-ink/[0.06] bg-white p-3" @submit.prevent="submit">
-    <div class="mb-2 flex flex-wrap items-center gap-2" role="group" aria-label="Opciones de respuesta">
+    <button
+      type="button"
+      class="mb-2 flex w-full items-center justify-between gap-2 rounded-lg border border-lumia-ink/10 bg-lumia-cream/40 px-3 py-1.5 text-left text-[12px] text-lumia-ink/75 transition-colors hover:bg-lumia-beige/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumia-gold/70"
+      :aria-expanded="optionsOpen ? 'true' : 'false'"
+      @click="optionsOpen = !optionsOpen"
+    >
+      <span class="truncate">Ajustes: {{ optionsSummary }}</span>
+      <IconChevronDown
+        class="h-3.5 w-3.5 shrink-0 transition-transform"
+        :class="optionsOpen ? 'rotate-180' : ''"
+        stroke-width="1.75"
+        aria-hidden="true"
+      />
+    </button>
+    <div v-if="optionsOpen" class="mb-2 flex flex-wrap items-center gap-2" role="group" aria-label="Opciones de respuesta">
       <span class="text-[11px] font-medium text-lumia-ink/55">Razonamiento</span>
       <button
         v-for="option in REASONING_OPTIONS"
@@ -28,7 +42,7 @@
         Las respuestas con razonamiento o más largas tardan más en aparecer.
       </p>
     </div>
-    <div v-if="canUseWeb" class="mb-2 flex flex-wrap items-center gap-2" role="group" aria-label="Búsqueda web">
+    <div v-if="optionsOpen && canUseWeb" class="mb-2 flex flex-wrap items-center gap-2" role="group" aria-label="Búsqueda web">
       <span class="text-[11px] font-medium text-lumia-ink/55">Búsqueda web</span>
       <button
         v-for="option in WEB_OPTIONS"
@@ -84,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconPlayerStop, IconSend } from '@tabler/icons-vue'
+import { IconChevronDown, IconPlayerStop, IconSend } from '@tabler/icons-vue'
 import { PERMISSIONS } from '#shared/auth/permissions'
 import { LUMI_MESSAGE_MAX, LUMI_RESPONSE_LENGTHS } from '#shared/schemas/lumi'
 import type { LumiMode } from '~/features/lumi/composables/useLumi'
@@ -109,6 +123,18 @@ const showCounter = computed(() => lumi.draft.value.length > LUMI_MESSAGE_MAX * 
 const canSend = computed(() => !lumi.sending.value && lumi.draft.value.trim().length > 0)
 
 const LONGEST_LENGTH = LUMI_RESPONSE_LENGTHS.reduce((max, length) => Math.max(max, length.value), 0)
+
+/** Ajustes plegados por defecto para no ocupar espacio en el chat. */
+const optionsOpen = ref(false)
+
+const optionsSummary = computed(() => {
+  const reasoning = REASONING_OPTIONS.find((o) => o.value === lumi.reasoningMode.value)?.label ?? ''
+  const length = LUMI_RESPONSE_LENGTHS.find((l) => l.value === lumi.maxTokens.value)?.label ?? ''
+  const web = WEB_OPTIONS.find((o) => o.value === lumi.webMode.value)?.label ?? ''
+  const reasoningText = `razonamiento ${reasoning}`
+  const lengthText = `respuesta ${length}`
+  return canUseWeb.value ? `${reasoningText} · ${lengthText} · web ${web}` : `${reasoningText} · ${lengthText}`
+})
 
 /** Con razonamiento activado, la respuesta necesita margen: se pasa a la longitud más larga. */
 function setReasoning(mode: LumiMode) {

@@ -1,5 +1,8 @@
 import {
   IconAdjustmentsHorizontal,
+  IconBell,
+  IconBulb,
+  IconRobot,
   IconBoxSeam,
   IconCategory,
   IconChartBar,
@@ -71,6 +74,14 @@ export const NAVIGATION: readonly NavGroup[] = [
         anyOf: [PERMISSIONS.MATERIALS_READ, PERMISSIONS.SUPPLIERS_READ, PERMISSIONS.UNITS_READ, PERMISSIONS.RECIPES_READ, PERMISSIONS.COSTING_READ],
         available: true,
       },
+    ],
+  },
+  {
+    label: 'Lumi',
+    items: [
+      { label: 'Automatizaciones', to: '/lumi/automatizaciones', icon: IconRobot, anyOf: [PERMISSIONS.LUMI_USE], available: true },
+      { label: 'Iniciativas', to: '/lumi/iniciativas', icon: IconBulb, anyOf: [PERMISSIONS.LUMI_USE], available: true },
+      { label: 'Notificaciones', to: '/lumi/notificaciones', icon: IconBell, anyOf: [PERMISSIONS.LUMI_USE], available: true },
     ],
   },
   {
