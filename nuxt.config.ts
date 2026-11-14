@@ -109,6 +109,11 @@ export default defineNuxtConfig({
      * Vacío = solo el mismo origen que sirve la aplicación.
      */
     allowedOrigins: '',
+    /**
+     * Secreto compartido con el Server (EDGE_PROXY_SECRET) para declarar la IP real del navegador
+     * (cabecera X-Lumia-Client-IP). Vacío: el Server usa su TRUST_PROXY. Nunca en `public`.
+     */
+    edgeProxySecret: '',
 
     public: {
       storeCurrency: 'COP',

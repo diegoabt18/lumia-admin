@@ -79,6 +79,9 @@ function buildHeaders(event: H3Event, req: UpstreamRequest, requestId: string): 
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'X-Request-ID': requestId,
+    // Identifica la aplicación: el Server separa las sesiones del admin de las de la tienda aunque
+    // se usen desde el mismo navegador (un login no cierra la otra sesión).
+    'X-Lumia-Client': 'admin',
   }
 
   const cookies: string[] = []
@@ -96,7 +99,15 @@ function buildHeaders(event: H3Event, req: UpstreamRequest, requestId: string): 
   // El Server registra IP y agente en sesiones y auditoría (trustProxy: true).
   // Solo se usa la IP del socket: no se confía en X-Forwarded-For enviado por el navegador.
   const ip = getRequestIP(event)
-  if (ip) headers['X-Forwarded-For'] = ip
+  if (ip) {
+    headers['X-Forwarded-For'] = ip
+    // Con el secreto compartido el Server acepta esta IP sin depender de su TRUST_PROXY.
+    const proxySecret = String(config.edgeProxySecret ?? '')
+    if (proxySecret) {
+      headers['X-Lumia-Client-IP'] = ip
+      headers['X-Lumia-Proxy-Secret'] = proxySecret
+    }
+  }
   const userAgent = getHeader(event, 'user-agent')
   if (userAgent) headers['User-Agent'] = userAgent.slice(0, 512)
   const language = getHeader(event, 'accept-language')
