@@ -35,7 +35,8 @@ Si el BFF reenviara esos `Set-Cookie` al navegador (como hacen Lumia y Lumia 2.0
 
 Resultado:
 
-- **Sesiones independientes.** Cada login crea su propio documento en `sessions`. Cerrar sesión en Lumia Admin revoca solo esa sesión; Lumia 2.0 sigue activa, y al revés.
+- **Sesiones independientes.** Cada login crea su propio documento en `sessions`. Cerrar sesión en Lumia Admin revoca solo esa sesión; Lumia 2.0 sigue activa, y al revés. El BFF envía `X-Lumia-Client: admin`, que el Server incluye en el identificador de dispositivo: sin ello, iniciar sesión en el admin cerraba la sesión de la tienda abierta en el mismo navegador (corregido en la auditoría 2026-11-14, comprobado por la E2E del Server).
+- **IP real del navegador.** Con `NUXT_EDGE_PROXY_SECRET` (igual a `EDGE_PROXY_SECRET` del Server) el BFF declara la IP con `X-Lumia-Client-IP`; el Server solo la acepta con ese secreto.
 - **El mismo código funciona en desarrollo y producción**, porque no depende de los atributos de las cookies del Server.
 - El navegador nunca ve los tokens. El `tempToken` del 2FA tampoco sale del BFF.
 
