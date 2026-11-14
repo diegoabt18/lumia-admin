@@ -1,109 +1,121 @@
 <template>
-  <fieldset class="space-y-4 rounded-xl border border-gray-200 bg-white p-6">
-    <legend class="text-sm font-semibold text-gray-900">Ejes de Opciones (Tamaño, Color, etc.)</legend>
-    <p class="text-sm text-gray-600">Define los atributos que diferencia a las variantes. Ej: Tamaño con valores Pequeño, Mediano, Grande.</p>
+  <div class="space-y-5">
+    <p class="text-[13px] text-lumia-ink/60">
+      Define los atributos que diferencian a las variantes. Ej.: Tamaño con valores Pequeño, Mediano y Grande.
+    </p>
 
-    <!-- Lista de ejes existentes -->
-    <div v-if="axes.length > 0" class="space-y-3">
-      <div v-for="(axis, idx) in axes" :key="idx" class="rounded-lg border border-gray-100 bg-gray-50 p-4">
-        <div class="flex items-start justify-between gap-2">
-          <div class="flex-1">
-            <p class="font-medium text-gray-900">{{ axis.name }}</p>
-            <p class="text-sm text-gray-600">{{ axis.values.length }} valores</p>
-            <div class="mt-2 flex flex-wrap gap-1">
-              <span v-for="(val, i) in axis.values" :key="i" class="inline-block rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800">
-                {{ typeof val === 'string' ? val : val.value }}
-              </span>
+    <ul v-if="axes.length > 0" class="space-y-3" aria-label="Ejes de opciones">
+      <li v-for="(axis, idx) in axes" :key="`${axis.name}-${idx}`" class="rounded-xl border border-lumia-ink/10 bg-lumia-cream/40 p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <p class="font-medium text-lumia-ink">{{ axis.name }}</p>
+            <p class="text-[12px] text-lumia-ink/55">{{ axis.values.length }} {{ axis.values.length === 1 ? 'valor' : 'valores' }}</p>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <BaseBadge v-for="(val, i) in axis.values" :key="i">{{ valueLabel(val) }}</BaseBadge>
             </div>
           </div>
-          <button
-            type="button"
-            class="text-red-600 hover:text-red-800"
-            @click="removeAxis(idx)"
-          >
-            ✕
-          </button>
+          <BaseButton variant="ghost" size="sm" :aria-label="`Quitar el eje ${axis.name}`" @click="removeAxis(idx)">
+            <template #icon>
+              <IconX class="h-4 w-4" stroke-width="1.75" aria-hidden="true" />
+            </template>
+          </BaseButton>
         </div>
-      </div>
+      </li>
+    </ul>
+    <p v-else class="text-[13px] text-lumia-ink/50">Este producto todavía no tiene ejes de opciones.</p>
+
+    <div class="space-y-3 rounded-xl border border-dashed border-lumia-ink/15 p-4">
+      <FormField :id="`${uid}-name`" label="Nombre del eje" :error="nameError" hint="Ej.: Tamaño, Color, Aroma.">
+        <template #default="{ id, invalid, describedBy }">
+          <BaseInput :id="id" v-model="newName" :invalid="invalid" :described-by="describedBy" maxlength="60" />
+        </template>
+      </FormField>
+
+      <FormField :id="`${uid}-values`" label="Valores (uno por línea)" hint="Máximo 30 valores.">
+        <template #default="{ id, invalid, describedBy }">
+          <BaseTextarea :id="id" v-model="newValuesText" :rows="4" :invalid="invalid" :described-by="describedBy" />
+        </template>
+      </FormField>
+
+      <BaseButton variant="secondary" size="sm" :disabled="!canAdd" @click="addAxis">
+        <template #icon>
+          <IconPlus class="h-4 w-4" stroke-width="1.75" aria-hidden="true" />
+        </template>
+        Agregar eje
+      </BaseButton>
     </div>
-
-    <!-- Formulario para agregar nuevo eje -->
-    <div class="space-y-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
-      <div>
-        <label class="text-sm font-medium text-gray-700">Nombre del eje</label>
-        <input
-          v-model="newAxis.name"
-          type="text"
-          placeholder="Ej. Tamaño, Color, Aroma"
-          class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label class="text-sm font-medium text-gray-700">Valores (uno por línea)</label>
-        <textarea
-          v-model="newAxis.valuesText"
-          placeholder="Pequeño&#10;Mediano&#10;Grande"
-          rows="4"
-          class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <button
-        type="button"
-        :disabled="!newAxis.name || !newAxis.valuesText"
-        class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-300"
-        @click="addAxis"
-      >
-        + Agregar eje
-      </button>
-    </div>
-  </fieldset>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineProps, defineEmits } from 'vue'
+import { IconPlus, IconX } from '@tabler/icons-vue'
 import type { OptionAxis } from '#shared/schemas/variants'
 
-const props = defineProps<{
-  modelValue: OptionAxis[]
-}>()
+/**
+ * Editor de ejes de opciones del producto. No muta la prop: cada cambio emite una lista nueva,
+ * y el padre (página de producto) decide si la envía al guardar.
+ */
+const props = defineProps<{ modelValue: OptionAxis[] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: OptionAxis[]] }>()
 
-const emit = defineEmits<{
-  'update:modelValue': [value: OptionAxis[]]
-}>()
+const uid = useId()
+const MAX_VALUES = 30
 
-const axes = ref<OptionAxis[]>(props.modelValue || [])
+const axes = computed(() => props.modelValue ?? [])
+const newName = ref('')
+const newValuesText = ref('')
 
-const newAxis = ref({
-  name: '',
-  valuesText: '',
+const parsedValues = computed(() => [
+  ...new Set(
+    newValuesText.value
+      .split('\n')
+      .map((v) => v.trim())
+      .filter(Boolean),
+  ),
+])
+
+const nameError = computed(() => {
+  const name = newName.value.trim().toLocaleLowerCase('es-CO')
+  if (!name) return undefined
+  return axes.value.some((a) => a.name.trim().toLocaleLowerCase('es-CO') === name) ? 'Ya existe un eje con ese nombre.' : undefined
 })
 
+const canAdd = computed(
+  () => Boolean(newName.value.trim()) && !nameError.value && parsedValues.value.length > 0 && parsedValues.value.length <= MAX_VALUES,
+)
+
+function valueLabel(value: OptionAxis['values'][number]): string {
+  return typeof value === 'string' ? value : value.value
+}
+
+function slugify(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 function addAxis() {
-  if (!newAxis.value.name || !newAxis.value.valuesText) return
-
-  const values = newAxis.value.valuesText
-    .split('\n')
-    .map((v) => v.trim())
-    .filter(Boolean)
-
-  if (values.length === 0) return
-
-  axes.value.push({
-    name: newAxis.value.name,
-    position: axes.value.length,
-    values: values.map((v) => ({ value: v, slug: v.toLowerCase().replace(/\s+/g, '-') })),
-  })
-
-  emit('update:modelValue', axes.value)
-
-  newAxis.value.name = ''
-  newAxis.value.valuesText = ''
+  if (!canAdd.value) return
+  emit('update:modelValue', [
+    ...axes.value,
+    {
+      name: newName.value.trim(),
+      position: axes.value.length,
+      values: parsedValues.value.map((v) => ({ value: v, slug: slugify(v) })),
+    },
+  ])
+  newName.value = ''
+  newValuesText.value = ''
 }
 
 function removeAxis(idx: number) {
-  axes.value.splice(idx, 1)
-  emit('update:modelValue', axes.value)
+  emit(
+    'update:modelValue',
+    axes.value.filter((_, i) => i !== idx).map((axis, position) => ({ ...axis, position })),
+  )
 }
 </script>

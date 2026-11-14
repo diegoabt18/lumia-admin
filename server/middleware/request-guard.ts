@@ -57,6 +57,11 @@ export default defineEventHandler((event) => {
     if (!contentType.startsWith('application/json')) {
       throwBffError(415, { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'El cuerpo debe ser JSON.' })
     }
+    // Sin Content-Length (chunked) el tamaño no se puede acotar antes de leer: readBody cargaría
+    // en memoria cualquier cantidad. Los navegadores siempre envían Content-Length con fetch(JSON).
+    if (getHeader(event, 'transfer-encoding')) {
+      throwBffError(411, { code: 'LENGTH_REQUIRED', message: 'Falta el tamaño de la solicitud.' })
+    }
     if (contentLength > MAX_JSON_BODY_BYTES) {
       throwBffError(413, { code: 'PAYLOAD_TOO_LARGE', message: 'La solicitud es demasiado grande.' })
     }

@@ -95,9 +95,8 @@ Navegador ──/api/*──▶ Lumia Admin (Nitro) ──HTTP privado──▶ 
 | `POST /api/admin/orders/:id/status` | `GET` + `PATCH /api/admin/orders/:id` `{status}` (transición validada) | `orders.update` |
 | `PUT /api/admin/orders/:id/notes` | `PATCH /api/admin/orders/:id` `{notes}` | `orders.update` |
 | `POST /api/admin/orders/:id/cancellation` | `GET` + `PATCH /api/admin/orders/:id/cancellation` (exige solicitud abierta) | `orders.update` |
-| `POST /api/admin/orders/:id/deposit` | `GET` + `POST /api/admin/orders/:id/deposit` (paso `configure`) | `orders.update` |
-| `POST /api/admin/orders/:id/deposit/pay` | `GET` + `POST …/deposit/pay` (paso `pay_deposit`, monto ≤ total) | `orders.update` |
-| `POST /api/admin/orders/:id/final-payment` | `GET` + `POST …/final-payment/pay` (paso `pay_final`, monto ≤ total) | `orders.update` |
+| `GET /api/admin/orders/:id/payments` | `GET /api/admin/orders/:id/payments` (resumen del libro de pagos) | `orders.read` |
+| `POST /api/admin/orders/:id/payments` | `POST /api/admin/orders/:id/payments` (registra un pago; "pagado" lo decide el saldo) | `orders.update` |
 | cualquier otro `/api/*` | — | 404 `NOT_FOUND` |
 
 Los identificadores se validan (ObjectId de 24 hex y SKU `[A-Za-z0-9._-]{1,80}`) antes de llamar al Server. Las brechas del Server y sus protecciones están en `docs/modules.md`.
