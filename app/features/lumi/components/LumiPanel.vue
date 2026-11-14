@@ -64,6 +64,7 @@
 
       <div v-show="!lumi.minimized.value" class="flex min-h-0 flex-1 flex-col">
         <LumiHistory v-if="lumi.view.value === 'history'" @back="lumi.view.value = 'chat'" />
+        <LumiReviews v-else-if="lumi.view.value === 'review'" @back="lumi.view.value = 'chat'" />
 
         <template v-else>
           <div
@@ -119,6 +120,7 @@ const footerText = computed(() => {
 
 const statusLabel = computed(() => {
   if (lumi.view.value === 'history') return 'Historial de conversaciones'
+  if (lumi.view.value === 'review') return 'Tareas pendientes por revisar'
   if (lumi.sending.value) return 'Lumi está respondiendo…'
   if (lumi.connection.value === 'error') return 'Sin conexión con Lumi'
   return 'Asistente de administración'

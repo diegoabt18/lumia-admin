@@ -12,6 +12,7 @@
  */
 const lumi = useLumi()
 const position = useLumiPosition()
+const reviews = useLumiReviews()
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && lumi.open.value) lumi.close()
@@ -19,6 +20,7 @@ function onKeydown(event: KeyboardEvent) {
 
 onMounted(() => {
   position.restore()
+  reviews.init()
   window.addEventListener('resize', position.refit)
   window.addEventListener('keydown', onKeydown)
 })
@@ -26,6 +28,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', position.refit)
   window.removeEventListener('keydown', onKeydown)
+  reviews.dispose()
   lumi.reset()
 })
 </script>

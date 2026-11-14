@@ -23,7 +23,7 @@ export interface LumiViewMessage {
   reasoning?: boolean
 }
 
-export type LumiView = 'chat' | 'history'
+export type LumiView = 'chat' | 'history' | 'review'
 export type LumiMode = 'auto' | 'on' | 'off'
 export type LumiConnection = 'idle' | 'ok' | 'error'
 

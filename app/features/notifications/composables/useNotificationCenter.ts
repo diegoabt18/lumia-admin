@@ -6,7 +6,8 @@ import {
   type NotificationItem,
 } from '#shared/schemas/notifications'
 
-const PAGE_SIZE = 20
+/** Lista inicial: el máximo del Server, para que los pendientes de Lumi no queden fuera al cargar. */
+const PAGE_SIZE = 50
 const MAX_ITEMS = 50
 
 /**
