@@ -50,6 +50,7 @@ export default defineNuxtConfig({
     { path: '~/features/images/components', pathPrefix: false },
     { path: '~/features/production/components', pathPrefix: false },
     { path: '~/features/lumi/components', pathPrefix: false },
+    { path: '~/features/lumi-admin/components', pathPrefix: false },
   ],
 
   imports: {
