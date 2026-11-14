@@ -66,15 +66,25 @@
         <LumiHistory v-if="lumi.view.value === 'history'" @back="lumi.view.value = 'chat'" />
 
         <template v-else>
-          <p
+          <div
             v-if="lumi.pageContext.value"
-            class="shrink-0 border-b border-lumia-ink/[0.06] bg-lumia-cream/40 px-4 py-1.5 text-[12px] text-lumia-ink/70"
+            class="flex shrink-0 items-center justify-between gap-3 border-b border-lumia-ink/[0.06] bg-lumia-cream/40 px-4 py-1.5 text-[12px]"
           >
-            <span class="font-medium text-lumia-ink">Contexto:</span> {{ contextLabel }}
-          </p>
+            <p class="min-w-0 truncate" :class="lumi.pageContextEnabled.value ? 'text-lumia-ink/70' : 'text-lumia-ink/40 line-through'">
+              <span class="font-medium text-lumia-ink">Contexto:</span> {{ contextLabel }}
+            </p>
+            <label class="inline-flex shrink-0 cursor-pointer select-none items-center gap-1.5 text-lumia-ink/70">
+              <input
+                v-model="lumi.pageContextEnabled.value"
+                type="checkbox"
+                class="h-3.5 w-3.5 cursor-pointer rounded border-lumia-ink/30 text-lumia-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-lumia-gold/70"
+              />
+              Usar esta pantalla
+            </label>
+          </div>
           <LumiMessages />
           <p class="shrink-0 border-t border-lumia-ink/[0.06] bg-lumia-canvas/60 px-4 py-2 text-[11px] leading-snug text-lumia-ink/60">
-            {{ lumi.pageContext.value ? 'Lumi usa solo los datos de esta pantalla. Verifica cualquier cifra antes de usarla.' : 'Lumi todavía no consulta los datos de la tienda: verifica cualquier cifra o dato antes de usarlo.' }}
+            {{ footerText }}
           </p>
           <LumiComposer />
         </template>
@@ -100,6 +110,12 @@ const lumi = useLumi()
 const position = useLumiPosition()
 
 const contextLabel = computed(() => (lumi.pageContext.value ? lumiContextLabel(lumi.pageContext.value) : ''))
+
+const footerText = computed(() => {
+  if (!lumi.pageContext.value) return 'Lumi todavía no consulta los datos de la tienda: verifica cualquier cifra o dato antes de usarlo.'
+  if (!lumi.pageContextEnabled.value) return 'El contexto de pantalla está desactivado: Lumi no usa los datos de esta vista.'
+  return 'Lumi usa solo los datos de esta pantalla. Verifica cualquier cifra antes de usarla.'
+})
 
 const statusLabel = computed(() => {
   if (lumi.view.value === 'history') return 'Historial de conversaciones'

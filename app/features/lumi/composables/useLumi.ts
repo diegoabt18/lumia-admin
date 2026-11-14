@@ -19,6 +19,8 @@ export interface LumiViewMessage {
   thinking?: string
   /** Pregunta enviada con búsqueda web activa. Solo para mostrar. */
   webSearch?: boolean
+  /** Razonamiento aplicado al turno (también en modo automático). Solo para mostrar. */
+  reasoning?: boolean
 }
 
 export type LumiView = 'chat' | 'history'
@@ -55,6 +57,8 @@ export function useLumi() {
    * En búsqueda web, solo la pregunta sale a internet, sin contexto de pantalla.
    */
   const webMode = useState<LumiMode>('lumi-web-mode', () => 'auto')
+  /** Incluir los datos de la pantalla actual en el próximo mensaje. Activado por defecto. */
+  const pageContextEnabled = useState<boolean>('lumi-page-context-enabled', () => true)
   const reasoningMode = useState<LumiMode>('lumi-reasoning-mode', () => 'auto')
   /** Longitud máxima de la respuesta (tokens) para los próximos mensajes. */
   const maxTokens = useState<number>('lumi-max-tokens', () => LUMI_RESPONSE_LENGTHS[0].value)
@@ -182,8 +186,10 @@ export function useLumi() {
     sending.value = true
 
     // El contexto se toma al enviar: refleja la pantalla en la que el administrador escribió.
-    // En modo web no se envía ningún contexto: solo la pregunta.
-    const context = webMode.value === 'on' ? undefined : (pageContext.value ?? undefined)
+    // En modo web no se envía ningún contexto: solo la pregunta. Con el contexto desactivado,
+    // tampoco se envía: Lumi responde sin datos de la pantalla.
+    const context =
+      webMode.value === 'on' || !pageContextEnabled.value ? undefined : (pageContext.value ?? undefined)
     const controller = new AbortController()
     activeStream.value = controller
     let answer = ''
@@ -204,7 +210,7 @@ export function useLumi() {
         (event) => {
           if (gen !== generation.value) return
           if (event.type === 'mode') {
-            replaceMessage(pendingKey, { webSearch: event.webSearch })
+            replaceMessage(pendingKey, { webSearch: event.webSearch, reasoning: event.reasoning })
           } else if (event.type === 'thinking') {
             thinking += event.text
             replaceMessage(pendingKey, { thinking, state: 'streaming' })
@@ -320,6 +326,7 @@ export function useLumi() {
     draft.value = ''
     reasoningMode.value = 'auto'
     webMode.value = 'auto'
+    pageContextEnabled.value = true
     maxTokens.value = LUMI_RESPONSE_LENGTHS[0].value
     open.value = false
     expanded.value = false
@@ -351,6 +358,7 @@ export function useLumi() {
     historyError,
     pageContext,
     webMode,
+    pageContextEnabled,
     reasoningMode,
     maxTokens,
     send,
