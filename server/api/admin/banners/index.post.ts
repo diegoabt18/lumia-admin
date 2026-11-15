@@ -6,7 +6,7 @@ import { serverApi } from '../../../utils/server-api'
 import { toBffError } from '../../../utils/upstream'
 import { readValidatedJson } from '../../../utils/validation'
 
-/** POST /api/admin/store-banners (Server: products.update). URLs restringidas a https / rutas internas. */
+/** POST /api/admin/store-banners (Server: banners.create). URLs restringidas a https / rutas internas. */
 export default defineEventHandler(async (event) => {
   const input = await readValidatedJson(event, bannerBodySchema)
   try {

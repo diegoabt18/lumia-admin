@@ -6,11 +6,11 @@
       <div class="grid gap-6 lg:grid-cols-2">
         <BaseCard title="Envío">
           <div class="space-y-5">
-            <BaseSwitch id="ship-enabled" v-model="form.shippingEnabled" label="Cobrar envío" description="Desactivado: el envío no tiene costo en ningún pedido." :disabled="saving" />
-            <BaseSwitch id="ship-flat" v-model="form.flatRateEnabled" label="Tarifa fija" description="Desactivada: el costo lo coordina el vendedor con el cliente (envío variable)." :disabled="saving || !form.shippingEnabled" />
+            <BaseSwitch id="ship-enabled" v-model="form.shippingEnabled" label="Cobrar envío" description="Desactivado: el envío no tiene costo en ningún pedido." :disabled="saving || readOnly" />
+            <BaseSwitch id="ship-flat" v-model="form.flatRateEnabled" label="Tarifa fija" description="Desactivada: el costo lo coordina el vendedor con el cliente (envío variable)." :disabled="saving || readOnly || !form.shippingEnabled" />
             <FormField id="ship-flat-rate" :label="`Tarifa fija (${currency})`" :error="errors.flatRate" required>
               <template #default="{ id, invalid, describedBy }">
-                <BaseInput :id="id" v-model="flatRate" inputmode="numeric" maxlength="10" class="tabular-nums" :invalid="invalid" :described-by="describedBy" :disabled="saving || !form.shippingEnabled || !form.flatRateEnabled" />
+                <BaseInput :id="id" v-model="flatRate" inputmode="numeric" maxlength="10" class="tabular-nums" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly || !form.shippingEnabled || !form.flatRateEnabled" />
               </template>
             </FormField>
           </div>
@@ -18,15 +18,15 @@
 
         <BaseCard title="Envío gratis">
           <div class="space-y-5">
-            <BaseSwitch id="ship-free" v-model="form.freeShippingEnabled" label="Envío gratis desde un monto" :disabled="saving || !form.shippingEnabled" />
+            <BaseSwitch id="ship-free" v-model="form.freeShippingEnabled" label="Envío gratis desde un monto" :disabled="saving || readOnly || !form.shippingEnabled" />
             <FormField id="ship-threshold" :label="`Monto mínimo (${currency})`" :error="errors.freeShippingThreshold" required>
               <template #default="{ id, invalid, describedBy }">
-                <BaseInput :id="id" v-model="threshold" inputmode="numeric" maxlength="10" class="tabular-nums" :invalid="invalid" :described-by="describedBy" :disabled="saving || !form.freeShippingEnabled" />
+                <BaseInput :id="id" v-model="threshold" inputmode="numeric" maxlength="10" class="tabular-nums" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly || !form.freeShippingEnabled" />
               </template>
             </FormField>
             <FormField id="ship-apply" label="Se compara con" :error="errors.applyThresholdOn" required>
               <template #default="{ id, invalid, describedBy }">
-                <BaseSelect :id="id" v-model="form.applyThresholdOn" :options="thresholdOptions" :invalid="invalid" :described-by="describedBy" :disabled="saving || !form.freeShippingEnabled" />
+                <BaseSelect :id="id" v-model="form.applyThresholdOn" :options="thresholdOptions" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly || !form.freeShippingEnabled" />
               </template>
             </FormField>
           </div>
@@ -35,21 +35,21 @@
 
       <BaseCard class="mt-6" title="Mensajes en la tienda" description="Variables disponibles: {remaining} (lo que falta) y {shippingCost} (costo del envío).">
         <div class="mb-5 grid gap-4 sm:grid-cols-2">
-          <BaseSwitch id="ship-progress" v-model="form.showProgressBar" label="Barra de progreso" :disabled="saving" />
-          <BaseSwitch id="ship-messages" v-model="form.showMessages" label="Mostrar mensajes" :disabled="saving" />
+          <BaseSwitch id="ship-progress" v-model="form.showProgressBar" label="Barra de progreso" :disabled="saving || readOnly" />
+          <BaseSwitch id="ship-messages" v-model="form.showMessages" label="Mostrar mensajes" :disabled="saving || readOnly" />
         </div>
         <div class="grid gap-5 sm:grid-cols-2">
           <FormField v-for="m in messageFields" :id="`ship-msg-${m.key}`" :key="m.key" :label="m.label" :error="errors[`messages.${m.key}`]">
             <template #default="{ id, invalid, describedBy }">
-              <BaseInput :id="id" v-model="form.messages[m.key]" maxlength="300" :invalid="invalid" :described-by="describedBy" :disabled="saving" />
+              <BaseInput :id="id" v-model="form.messages[m.key]" maxlength="300" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" />
             </template>
           </FormField>
         </div>
       </BaseCard>
 
-      <SettingsFormFooter :dirty="dirty" :saving="saving" :form-error="formError" @discard="discard">
+      <SettingsFormFooter :read-only="readOnly" :dirty="dirty" :saving="saving" :form-error="formError" @discard="discard">
         <template #extra>
-          <BaseButton variant="ghost" :disabled="saving || resetting" :loading="resetting" @click="resetDefaults">Valores por defecto</BaseButton>
+          <BaseButton variant="ghost" :disabled="saving || readOnly || resetting" :loading="resetting" @click="resetDefaults">Valores por defecto</BaseButton>
         </template>
       </SettingsFormFooter>
     </form>
@@ -57,7 +57,12 @@
 </template>
 
 <script setup lang="ts">
+import { PERMISSIONS } from '#shared/auth/permissions'
 import { SHIPPING_MESSAGE_KEYS, shippingSettingsSchema, type ShippingSettings } from '#shared/schemas/settings'
+
+/** Sin store.settings.manage los ajustes se ven pero no se pueden guardar. */
+const auth = useAuth()
+const readOnly = computed(() => !auth.can(PERMISSIONS.STORE_SETTINGS_MANAGE))
 
 type ShippingForm = Omit<ShippingSettings, 'flatRate' | 'freeShippingThreshold'> & { flatRate: string; freeShippingThreshold: string }
 

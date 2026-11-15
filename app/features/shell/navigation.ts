@@ -25,9 +25,9 @@ import type { NavGroup } from '~/types/ui'
  * Mapa de módulos del admin.
  *
  * Cada `anyOf` usa el permiso que el Server exige en el endpoint de lectura del módulo
- * (verificado en server/src/routes/*.routes.ts). No se inventan permisos: los módulos que en
- * el Server solo exigen `admin.access` (tienda, feedback) usan ese permiso, y Contabilidad no
- * aparece porque el Server todavía no define permisos ni endpoints para ella (ver docs/permissions.md).
+ * (verificado en server/src/routes/*.routes.ts). Desde 2026-11 tienda, pagos, reseñas, promociones,
+ * banners e inventario tienen permisos propios. Contabilidad no aparece porque el Server todavía no
+ * define permisos ni endpoints para ella (ver docs/permissions.md).
  *
  * `available: false` = módulo pendiente de construir en Lumia Admin.
  */
@@ -49,19 +49,19 @@ export const NAVIGATION: readonly NavGroup[] = [
     label: 'Catálogo',
     items: [
       { label: 'Productos', to: '/products', icon: IconBoxSeam, anyOf: [PERMISSIONS.PRODUCTS_READ], available: true },
-      { label: 'Inventario', to: '/inventory', icon: IconPackages, anyOf: [PERMISSIONS.PRODUCTS_READ], available: true },
+      { label: 'Inventario', to: '/inventory', icon: IconPackages, anyOf: [PERMISSIONS.INVENTORY_READ], available: true },
       { label: 'Categorías', to: '/categories', icon: IconCategory, anyOf: [PERMISSIONS.CATEGORIES_READ], available: true },
       { label: 'Subcategorías', to: '/subcategories', icon: IconCategory, anyOf: [PERMISSIONS.CATEGORIES_READ], available: true },
-      { label: 'Promociones', to: '/promotions', icon: IconRosetteDiscount, anyOf: [PERMISSIONS.PRODUCTS_READ], available: true },
-      { label: 'Banners', to: '/banners', icon: IconSlideshow, anyOf: [PERMISSIONS.PRODUCTS_READ], available: true },
+      { label: 'Promociones', to: '/promotions', icon: IconRosetteDiscount, anyOf: [PERMISSIONS.PROMOTIONS_READ], available: true },
+      { label: 'Banners', to: '/banners', icon: IconSlideshow, anyOf: [PERMISSIONS.BANNERS_READ], available: true },
       { label: 'Imágenes', to: '/images', icon: IconPhoto, anyOf: [PERMISSIONS.PRODUCTS_UPDATE, PERMISSIONS.MATERIALS_UPDATE], available: true },
     ],
   },
   {
     label: 'Tienda',
     items: [
-      { label: 'Configuración', to: '/store-settings', icon: IconAdjustmentsHorizontal, anyOf: [PERMISSIONS.ADMIN_ACCESS], available: true },
-      { label: 'Reseñas y preguntas', to: '/feedback', icon: IconMessageCircle, anyOf: [PERMISSIONS.ADMIN_ACCESS], available: true },
+      { label: 'Configuración', to: '/store-settings', icon: IconAdjustmentsHorizontal, anyOf: [PERMISSIONS.STORE_SETTINGS_READ], available: true },
+      { label: 'Reseñas y preguntas', to: '/feedback', icon: IconMessageCircle, anyOf: [PERMISSIONS.FEEDBACK_READ], available: true },
     ],
   },
   {

@@ -11,7 +11,7 @@ import { PERMISSIONS } from '#shared/auth/permissions'
 definePageMeta({
   layout: 'admin',
   title: 'Nueva promoción',
-  permissions: [PERMISSIONS.PRODUCTS_UPDATE],
+  permissions: [PERMISSIONS.PROMOTIONS_CREATE],
   breadcrumbs: [{ label: 'Catálogo' }, { label: 'Promociones', to: '/promotions' }, { label: 'Nueva' }],
 })
 </script>

@@ -67,6 +67,21 @@ export const PERMISSIONS = {
   EQUIVALENCES_DELETE: 'equivalences.delete',
   LUMI_USE: 'lumi.use',
   LUMI_WEB: 'lumi.web',
+  STORE_SETTINGS_READ: 'store.settings.read',
+  STORE_SETTINGS_MANAGE: 'store.settings.manage',
+  STORE_PAYMENTS_MANAGE: 'store.payments.manage',
+  PROMOTIONS_READ: 'promotions.read',
+  PROMOTIONS_CREATE: 'promotions.create',
+  PROMOTIONS_UPDATE: 'promotions.update',
+  PROMOTIONS_DELETE: 'promotions.delete',
+  BANNERS_READ: 'banners.read',
+  BANNERS_CREATE: 'banners.create',
+  BANNERS_UPDATE: 'banners.update',
+  BANNERS_DELETE: 'banners.delete',
+  FEEDBACK_READ: 'feedback.read',
+  FEEDBACK_MODERATE: 'feedback.moderate',
+  INVENTORY_READ: 'inventory.read',
+  INVENTORY_UPDATE: 'inventory.update',
 } as const
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

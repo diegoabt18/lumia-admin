@@ -5,7 +5,7 @@ import { toBffError } from '../../../../utils/upstream'
 import { readValidatedJson } from '../../../../utils/validation'
 
 /**
- * PUT /api/admin/inventory/:sku/deposit-policy (Server: products.update).
+ * PUT /api/admin/inventory/:sku/deposit-policy (Server: inventory.update).
  * Envía solo la política; el Server conserva el stock actual cuando no se envía `quantity`.
  */
 export default defineEventHandler(async (event) => {

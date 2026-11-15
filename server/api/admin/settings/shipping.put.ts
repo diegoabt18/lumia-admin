@@ -5,7 +5,7 @@ import { toBffError } from '../../../utils/upstream'
 import { readValidatedJson } from '../../../utils/validation'
 
 /**
- * PUT /api/admin/store-shipping-settings (Server: admin.access; el Server no valida el cuerpo).
+ * PUT /api/admin/store-shipping-settings (Server: store.settings.manage; el Server no valida el cuerpo).
  * `calculationType` se fija en 'flat_rate', el único modo que implementan Server y tienda.
  */
 export default defineEventHandler(async (event) => {

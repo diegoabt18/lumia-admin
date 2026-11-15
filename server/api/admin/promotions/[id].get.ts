@@ -4,7 +4,7 @@ import { parseUpstream, readObjectIdParam } from '../../../utils/request-input'
 import { serverApi } from '../../../utils/server-api'
 import { toBffError } from '../../../utils/upstream'
 
-/** GET /api/admin/promotions/:id (Server: products.read). */
+/** GET /api/admin/promotions/:id (Server: promotions.read). */
 export default defineEventHandler(async (event): Promise<PromotionDetail> => {
   const id = readObjectIdParam(event)
   try {

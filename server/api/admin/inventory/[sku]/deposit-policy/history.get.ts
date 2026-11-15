@@ -3,7 +3,7 @@ import { parseUpstream, readSkuParam } from '../../../../../utils/request-input'
 import { serverApi } from '../../../../../utils/server-api'
 import { toBffError } from '../../../../../utils/upstream'
 
-/** GET /api/admin/inventory/:sku/deposit-policy/history (Server: products.read). */
+/** GET /api/admin/inventory/:sku/deposit-policy/history (Server: inventory.read). */
 export default defineEventHandler(async (event) => {
   const sku = readSkuParam(event)
   try {

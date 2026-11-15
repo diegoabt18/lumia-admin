@@ -5,7 +5,7 @@ import { toBffError } from '../../../utils/upstream'
 import { readValidatedJson } from '../../../utils/validation'
 
 /**
- * PATCH /api/admin/store-payment-settings (Server: admin.access + adminPaymentMethodsSchema).
+ * PATCH /api/admin/store-payment-settings (Server: store.payments.manage + adminPaymentMethodsSchema).
  *
  * - Los métodos bloqueados (Mercado Pago) conservan su estado y textos actuales: su activación no
  *   se gestiona desde Lumia Admin. El BFF ignora lo que el navegador envíe para ellos.

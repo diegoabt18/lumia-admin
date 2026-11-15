@@ -20,20 +20,20 @@
             La integración además depende de la configuración del servidor.
           </p>
           <div v-else class="space-y-4">
-            <BaseSwitch :id="`pay-active-${method.methodId}`" v-model="method.isActive" label="Disponible para los clientes" :disabled="saving" />
+            <BaseSwitch :id="`pay-active-${method.methodId}`" v-model="method.isActive" label="Disponible para los clientes" :disabled="saving || readOnly" />
             <FormField :id="`pay-name-${method.methodId}`" label="Nombre visible" :error="errors[`methods.${i}.displayName`]" required>
               <template #default="{ id, invalid, describedBy }">
-                <BaseInput :id="id" v-model="method.displayName" maxlength="80" :invalid="invalid" :described-by="describedBy" :disabled="saving" />
+                <BaseInput :id="id" v-model="method.displayName" maxlength="80" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" />
               </template>
             </FormField>
             <FormField :id="`pay-desc-${method.methodId}`" label="Descripción" :error="errors[`methods.${i}.description`]">
               <template #default="{ id, invalid, describedBy }">
-                <BaseInput :id="id" v-model="method.description" maxlength="300" :invalid="invalid" :described-by="describedBy" :disabled="saving" />
+                <BaseInput :id="id" v-model="method.description" maxlength="300" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" />
               </template>
             </FormField>
             <FormField :id="`pay-time-${method.methodId}`" label="Tiempo estimado" :error="errors[`methods.${i}.estimatedProcessingTime`]">
               <template #default="{ id, invalid, describedBy }">
-                <BaseInput :id="id" v-model="method.estimatedProcessingTime" maxlength="60" :invalid="invalid" :described-by="describedBy" :disabled="saving" />
+                <BaseInput :id="id" v-model="method.estimatedProcessingTime" maxlength="60" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" />
               </template>
             </FormField>
           </div>
@@ -45,20 +45,25 @@
         <div class="grid gap-5 sm:grid-cols-2">
           <FormField v-for="f in bankFields" :id="`bank-${f.key}`" :key="f.key" :label="f.label" :error="errors[`bankTransferDetails.${f.key}`]" :required="f.required" :class="f.wide && 'sm:col-span-2'">
             <template #default="{ id, invalid, describedBy }">
-              <BaseInput :id="id" v-model="bank[f.key]" :maxlength="f.max" :invalid="invalid" :described-by="describedBy" :disabled="saving" />
+              <BaseInput :id="id" v-model="bank[f.key]" :maxlength="f.max" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" />
             </template>
           </FormField>
         </div>
         <p class="mt-3 text-[12px] text-lumia-ink/50">Deja banco, número y titular vacíos para no publicar datos bancarios (requiere desactivar la transferencia).</p>
       </BaseCard>
 
-      <SettingsFormFooter :dirty="dirty" :saving="saving" :form-error="formError" @discard="discard" />
+      <SettingsFormFooter :read-only="readOnly" :dirty="dirty" :saving="saving" :form-error="formError" @discard="discard" />
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
+import { PERMISSIONS } from '#shared/auth/permissions'
 import { LOCKED_PAYMENT_METHODS, paymentSettingsSchema, type PaymentMethodId, type PaymentSettings, type PaymentSettingsView } from '#shared/schemas/settings'
+
+/** Sin store.payments.manage los ajustes se ven pero no se pueden guardar. */
+const auth = useAuth()
+const readOnly = computed(() => !auth.can(PERMISSIONS.STORE_PAYMENTS_MANAGE))
 
 type BankForm = { bankName: string; accountNumber: string; accountHolder: string; taxId: string; instructions: string }
 type PaymentForm = { methods: PaymentSettings['methods']; bank: BankForm }

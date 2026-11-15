@@ -2,7 +2,7 @@ import { readObjectIdParam } from '../../../utils/request-input'
 import { serverApi } from '../../../utils/server-api'
 import { toBffError } from '../../../utils/upstream'
 
-/** DELETE /api/admin/promotions/:id (Server: products.update). */
+/** DELETE /api/admin/promotions/:id (Server: promotions.delete). */
 export default defineEventHandler(async (event) => {
   const id = readObjectIdParam(event)
   try {

@@ -6,7 +6,7 @@ import { toBffError } from '../../../utils/upstream'
 import { readValidatedJson } from '../../../utils/validation'
 
 /**
- * Editar banner → PATCH /api/admin/store-banners/:id (Server: products.update).
+ * Editar banner → PATCH /api/admin/store-banners/:id (Server: banners.update).
  * El Server reemplaza el documento: se lee el actual para conservar `collection_slug`.
  */
 export default defineEventHandler(async (event) => {

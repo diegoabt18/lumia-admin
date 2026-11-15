@@ -110,14 +110,14 @@
             <BaseBadge v-if="row.isPerOrder" tone="info">Por pedido</BaseBadge>
             <BaseBadge v-else :tone="row.available > 0 ? 'positive' : 'danger'">{{ row.available }}</BaseBadge>
           </template>
-          <template v-if="canUpdate" #actions="{ row }">
-            <BaseButton variant="ghost" size="sm" @click="openVariant(row)">
+          <template v-if="canUpdate || canAdjustStock" #actions="{ row }">
+            <BaseButton v-if="canUpdate" variant="ghost" size="sm" @click="openVariant(row)">
               <template #icon>
                 <IconPencil class="h-4 w-4" stroke-width="1.75" aria-hidden="true" />
               </template>
               <span class="sr-only">Editar {{ row.sku }}</span>
             </BaseButton>
-            <BaseButton variant="ghost" size="sm" @click="openStock(row)">
+            <BaseButton v-if="canAdjustStock" variant="ghost" size="sm" @click="openStock(row)">
               <template #icon>
                 <IconAdjustments class="h-4 w-4" stroke-width="1.75" aria-hidden="true" />
               </template>
@@ -185,6 +185,8 @@ const { confirm } = useConfirm()
 const id = computed(() => String(route.params.id ?? ''))
 const canUpdate = computed(() => auth.can(PERMISSIONS.PRODUCTS_UPDATE))
 const canDelete = computed(() => auth.can(PERMISSIONS.PRODUCTS_DELETE))
+/** Ajustar existencias es del módulo de inventario (el Server exige inventory.update). */
+const canAdjustStock = computed(() => auth.can(PERMISSIONS.INVENTORY_UPDATE))
 
 const { data: product, status: fetchStatus, error, refresh } = useAsyncData<ProductDetail>(
   () => `admin-product-${id.value}`,

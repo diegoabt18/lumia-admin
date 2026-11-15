@@ -30,14 +30,14 @@ import type { PromotionDetail } from '#shared/schemas/promotions'
 definePageMeta({
   layout: 'admin',
   title: 'Promoción',
-  permissions: [PERMISSIONS.PRODUCTS_READ],
+  permissions: [PERMISSIONS.PROMOTIONS_READ],
   breadcrumbs: [{ label: 'Catálogo' }, { label: 'Promociones', to: '/promotions' }, { label: 'Detalle' }],
 })
 
 const route = useRoute()
 const auth = useAuth()
 const { request } = useAdminApi()
-const canUpdate = computed(() => auth.can(PERMISSIONS.PRODUCTS_UPDATE))
+const canUpdate = computed(() => auth.can(PERMISSIONS.PROMOTIONS_UPDATE))
 const id = computed(() => String(route.params.id ?? ''))
 
 const { data: promotion, status, error, refresh } = useAsyncData<PromotionDetail>(

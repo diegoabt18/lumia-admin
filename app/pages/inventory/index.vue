@@ -92,12 +92,12 @@ import type { DepositPolicyTarget, StockTarget, TableColumn } from '~/types/ui'
 definePageMeta({
   layout: 'admin',
   title: 'Inventario',
-  permissions: [PERMISSIONS.PRODUCTS_READ],
+  permissions: [PERMISSIONS.INVENTORY_READ],
   breadcrumbs: [{ label: 'Catálogo' }, { label: 'Inventario' }],
 })
 
 const auth = useAuth()
-const canUpdate = computed(() => auth.can(PERMISSIONS.PRODUCTS_UPDATE))
+const canUpdate = computed(() => auth.can(PERMISSIONS.INVENTORY_UPDATE))
 
 const table = useTableQuery({ allowedLimits: [25, 50, 100] })
 const { rows, pagination, loading, errorMessage, refresh } = useServerList<InventoryRow>(

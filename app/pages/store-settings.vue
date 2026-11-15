@@ -34,13 +34,14 @@ import { IconCash, IconCreditCard, IconHeadset, IconTruckDelivery } from '@table
 import { PERMISSIONS } from '#shared/auth/permissions'
 
 /**
- * El Server protege toda la configuración solo con admin.access (no hay permisos específicos):
- * cualquier usuario del panel puede verla y modificarla (ver docs/permissions.md).
+ * Ver la configuración exige store.settings.read. Guardar exige store.settings.manage (envíos,
+ * moneda y atención) o store.payments.manage (pagos); sin ellos cada formulario queda en solo
+ * lectura. El Server vuelve a comprobarlo en cada petición (ver docs/permissions.md).
  */
 definePageMeta({
   layout: 'admin',
   title: 'Configuración',
-  permissions: [PERMISSIONS.ADMIN_ACCESS],
+  permissions: [PERMISSIONS.STORE_SETTINGS_READ],
   breadcrumbs: [{ label: 'Tienda' }, { label: 'Configuración' }],
 })
 

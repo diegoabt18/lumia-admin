@@ -55,7 +55,7 @@
             <code class="break-all text-[12px] text-lumia-ink/60">{{ row.reporterId || '—' }}</code>
           </template>
           <template #actions="{ row }">
-            <template v-if="row.moderatable">
+            <template v-if="row.moderatable && canModerate">
               <BaseButton
                 variant="ghost"
                 size="sm"
@@ -109,11 +109,14 @@ import type { TableColumn } from '~/types/ui'
 definePageMeta({
   layout: 'admin',
   title: 'Reseñas y preguntas',
-  permissions: [PERMISSIONS.ADMIN_ACCESS],
+  permissions: [PERMISSIONS.FEEDBACK_READ],
   breadcrumbs: [{ label: 'Tienda' }, { label: 'Reseñas y preguntas' }],
 })
 
 const { request } = useAdminApi()
+const auth = useAuth()
+/** Ver los reportes no basta para moderar: ocultar o mostrar exige feedback.moderate. */
+const canModerate = computed(() => auth.can(PERMISSIONS.FEEDBACK_MODERATE))
 const toast = useToast()
 const { confirm } = useConfirm()
 

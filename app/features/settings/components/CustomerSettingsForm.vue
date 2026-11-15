@@ -11,10 +11,10 @@
         <BaseCard title="Contacto">
           <div class="space-y-5">
             <FormField id="cs-whatsapp" label="WhatsApp de soporte" :error="errors.supportWhatsappPhone" hint="Solo dígitos con indicativo, sin + (ej. 573001234567).">
-              <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="form.supportWhatsappPhone" inputmode="numeric" maxlength="15" :invalid="invalid" :described-by="describedBy" :disabled="saving" /></template>
+              <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="form.supportWhatsappPhone" inputmode="numeric" maxlength="15" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" /></template>
             </FormField>
             <FormField id="cs-email" label="Correo de contacto" :error="errors.contactEmail">
-              <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="form.contactEmail" type="email" maxlength="254" :invalid="invalid" :described-by="describedBy" :disabled="saving" /></template>
+              <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="form.contactEmail" type="email" maxlength="254" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" /></template>
             </FormField>
           </div>
         </BaseCard>
@@ -30,7 +30,7 @@
                   maxlength="4"
                   :invalid="invalid"
                   :described-by="describedBy"
-                  :disabled="saving"
+                  :disabled="saving || readOnly"
                   @update:model-value="setPromoDelay"
                 />
               </template>
@@ -41,29 +41,29 @@
         <BaseCard title="Políticas y términos">
           <div class="space-y-5">
             <FormField id="cs-policies-url" label="URL de políticas" :error="errors.policiesUrl" hint="Ruta de la tienda (/legal/privacy) o URL https://.">
-              <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="form.policiesUrl" maxlength="2000" :invalid="invalid" :described-by="describedBy" :disabled="saving" /></template>
+              <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="form.policiesUrl" maxlength="2000" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" /></template>
             </FormField>
             <FormField id="cs-terms-url" label="URL de términos" :error="errors.termsUrl" hint="Ruta de la tienda o URL https://.">
-              <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="form.termsUrl" maxlength="2000" :invalid="invalid" :described-by="describedBy" :disabled="saving" /></template>
+              <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="form.termsUrl" maxlength="2000" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" /></template>
             </FormField>
           </div>
         </BaseCard>
 
         <BaseCard title="Texto de políticas" class="lg:col-span-1">
           <FormField id="cs-policies" label="Contenido" :error="errors.policiesContent" hint="Texto plano. Máximo 20 000 caracteres.">
-            <template #default="{ id, invalid, describedBy }"><BaseTextarea :id="id" v-model="form.policiesContent" :rows="8" maxlength="20000" :invalid="invalid" :described-by="describedBy" :disabled="saving" /></template>
+            <template #default="{ id, invalid, describedBy }"><BaseTextarea :id="id" v-model="form.policiesContent" :rows="8" maxlength="20000" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" /></template>
           </FormField>
         </BaseCard>
         <BaseCard title="Texto de términos" class="lg:col-span-1">
           <FormField id="cs-terms" label="Contenido" :error="errors.termsContent" hint="Texto plano. Máximo 20 000 caracteres.">
-            <template #default="{ id, invalid, describedBy }"><BaseTextarea :id="id" v-model="form.termsContent" :rows="8" maxlength="20000" :invalid="invalid" :described-by="describedBy" :disabled="saving" /></template>
+            <template #default="{ id, invalid, describedBy }"><BaseTextarea :id="id" v-model="form.termsContent" :rows="8" maxlength="20000" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" /></template>
           </FormField>
         </BaseCard>
       </div>
 
       <BaseCard class="mt-6" title="Preguntas frecuentes" :description="`${form.faqItems.length} de 30`">
         <template #actions>
-          <BaseButton size="sm" variant="secondary" :disabled="saving || form.faqItems.length >= 30" @click="addFaq">
+          <BaseButton size="sm" variant="secondary" :disabled="saving || readOnly || form.faqItems.length >= 30" @click="addFaq">
             <template #icon><IconPlus class="h-4 w-4" stroke-width="2" aria-hidden="true" /></template>
             Agregar
           </BaseButton>
@@ -74,31 +74,36 @@
             <div class="mb-3 flex items-center justify-between">
               <span class="text-[12px] font-semibold text-lumia-ink/45">#{{ i + 1 }}</span>
               <div class="flex gap-1">
-                <BaseButton variant="ghost" size="sm" :disabled="saving || i === 0" @click="moveFaq(i, -1)"><IconArrowUp class="h-4 w-4" aria-hidden="true" /><span class="sr-only">Subir</span></BaseButton>
-                <BaseButton variant="ghost" size="sm" :disabled="saving || i === form.faqItems.length - 1" @click="moveFaq(i, 1)"><IconArrowDown class="h-4 w-4" aria-hidden="true" /><span class="sr-only">Bajar</span></BaseButton>
-                <BaseButton variant="ghost" size="sm" :disabled="saving" @click="form.faqItems.splice(i, 1)"><IconTrash class="h-4 w-4 text-status-danger" aria-hidden="true" /><span class="sr-only">Quitar pregunta {{ i + 1 }}</span></BaseButton>
+                <BaseButton variant="ghost" size="sm" :disabled="saving || readOnly || i === 0" @click="moveFaq(i, -1)"><IconArrowUp class="h-4 w-4" aria-hidden="true" /><span class="sr-only">Subir</span></BaseButton>
+                <BaseButton variant="ghost" size="sm" :disabled="saving || readOnly || i === form.faqItems.length - 1" @click="moveFaq(i, 1)"><IconArrowDown class="h-4 w-4" aria-hidden="true" /><span class="sr-only">Bajar</span></BaseButton>
+                <BaseButton variant="ghost" size="sm" :disabled="saving || readOnly" @click="form.faqItems.splice(i, 1)"><IconTrash class="h-4 w-4 text-status-danger" aria-hidden="true" /><span class="sr-only">Quitar pregunta {{ i + 1 }}</span></BaseButton>
               </div>
             </div>
             <div class="space-y-3">
               <FormField :id="`faq-q-${item.id}`" label="Pregunta" :error="errors[`faqItems.${i}.question`]" required>
-                <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="item.question" maxlength="300" :invalid="invalid" :described-by="describedBy" :disabled="saving" /></template>
+                <template #default="{ id, invalid, describedBy }"><BaseInput :id="id" v-model="item.question" maxlength="300" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" /></template>
               </FormField>
               <FormField :id="`faq-a-${item.id}`" label="Respuesta" :error="errors[`faqItems.${i}.answer`]" required>
-                <template #default="{ id, invalid, describedBy }"><BaseTextarea :id="id" v-model="item.answer" :rows="3" maxlength="2000" :invalid="invalid" :described-by="describedBy" :disabled="saving" /></template>
+                <template #default="{ id, invalid, describedBy }"><BaseTextarea :id="id" v-model="item.answer" :rows="3" maxlength="2000" :invalid="invalid" :described-by="describedBy" :disabled="saving || readOnly" /></template>
               </FormField>
             </div>
           </li>
         </ol>
       </BaseCard>
 
-      <SettingsFormFooter :dirty="dirty" :saving="saving" :form-error="formError" @discard="discard" />
+      <SettingsFormFooter :read-only="readOnly" :dirty="dirty" :saving="saving" :form-error="formError" @discard="discard" />
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
+import { PERMISSIONS } from '#shared/auth/permissions'
 import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from '@tabler/icons-vue'
 import { customerSettingsSchema, type CustomerSettings } from '#shared/schemas/settings'
+
+/** Sin store.settings.manage los ajustes se ven pero no se pueden guardar. */
+const auth = useAuth()
+const readOnly = computed(() => !auth.can(PERMISSIONS.STORE_SETTINGS_MANAGE))
 
 const { loading, loadError, refresh, form, errors, formError, saving, dirty, save, discard } = useSettingsForm<CustomerSettings, CustomerSettings>({
   key: 'admin-settings-customer',

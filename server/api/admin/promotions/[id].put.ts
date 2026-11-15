@@ -6,7 +6,7 @@ import { toBffError } from '../../../utils/upstream'
 import { readValidatedJson } from '../../../utils/validation'
 
 /**
- * Editar promoción → PATCH /api/admin/promotions/:id (Server: products.update).
+ * Editar promoción → PATCH /api/admin/promotions/:id (Server: promotions.update).
  * El Server REEMPLAZA el documento: se lee el actual para conservar la imagen de notificación,
  * que esta interfaz no edita.
  */

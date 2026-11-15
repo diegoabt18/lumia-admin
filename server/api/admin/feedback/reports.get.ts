@@ -3,7 +3,7 @@ import { parseUpstream, readListQuery } from '../../../utils/request-input'
 import { serverApi } from '../../../utils/server-api'
 import { toBffError } from '../../../utils/upstream'
 
-/** GET /api/admin/feedback/reports (Server: admin.access). El Server no admite búsqueda ni filtros. */
+/** GET /api/admin/feedback/reports (Server: feedback.read). El Server no admite búsqueda ni filtros. */
 export default defineEventHandler(async (event): Promise<FeedbackReportList> => {
   try {
     const { page, limit } = readListQuery(event, { allowedLimits: [20, 50, 100], escapeSearch: false })

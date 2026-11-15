@@ -5,7 +5,7 @@ import { toBffError } from '../../../../../utils/upstream'
 import { readValidatedJson } from '../../../../../utils/validation'
 
 /**
- * PUT /api/admin/products/:id/inventory/:sku (Server: products.update).
+ * PUT /api/admin/products/:id/inventory/:sku (Server: inventory.update).
  * El Server verifica que la variante pertenezca al producto antes de escribir.
  */
 export default defineEventHandler(async (event) => {

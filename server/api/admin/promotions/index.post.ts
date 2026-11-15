@@ -6,7 +6,7 @@ import { serverApi } from '../../../utils/server-api'
 import { toBffError } from '../../../utils/upstream'
 import { readValidatedJson } from '../../../utils/validation'
 
-/** POST /api/admin/promotions (Server: products.update). */
+/** POST /api/admin/promotions (Server: promotions.create). */
 export default defineEventHandler(async (event) => {
   const input = await readValidatedJson(event, promotionBodySchema)
   try {

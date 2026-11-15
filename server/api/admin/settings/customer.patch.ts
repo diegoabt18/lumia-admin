@@ -5,7 +5,7 @@ import { toBffError } from '../../../utils/upstream'
 import { readValidatedJson } from '../../../utils/validation'
 
 /**
- * PATCH /api/admin/store-customer-settings (Server: admin.access).
+ * PATCH /api/admin/store-customer-settings (Server: store.settings.manage).
  * El Server hace `$set` de cualquier clave recibida: el esquema estricto solo deja pasar los
  * campos conocidos, con tipos y longitudes acotados y URLs seguras.
  */

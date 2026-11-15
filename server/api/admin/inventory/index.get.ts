@@ -3,7 +3,7 @@ import { parseUpstream, readListQuery } from '../../../utils/request-input'
 import { serverApi } from '../../../utils/server-api'
 import { toBffError } from '../../../utils/upstream'
 
-/** GET /api/admin/inventory (Server: products.read). Búsqueda por SKU o bodega (el Server escapa). */
+/** GET /api/admin/inventory (Server: inventory.read). Búsqueda por SKU o bodega (el Server escapa). */
 export default defineEventHandler(async (event): Promise<InventoryList> => {
   try {
     const query = readListQuery(event, { allowedLimits: [25, 50, 100], escapeSearch: false })

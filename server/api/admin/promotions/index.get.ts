@@ -4,7 +4,7 @@ import { parseUpstream, readListQuery } from '../../../utils/request-input'
 import { serverApi } from '../../../utils/server-api'
 import { toBffError } from '../../../utils/upstream'
 
-/** GET /api/admin/promotions (Server: products.read). Filtro `lifecycle`; la búsqueda la escapa el Server. */
+/** GET /api/admin/promotions (Server: promotions.read). Filtro `lifecycle`; la búsqueda la escapa el Server. */
 export default defineEventHandler(async (event): Promise<PromotionList> => {
   try {
     const query = readListQuery(event, { allowedLimits: [20, 50, 100], escapeSearch: false })

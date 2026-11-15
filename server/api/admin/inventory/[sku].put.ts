@@ -5,7 +5,7 @@ import { toBffError } from '../../../utils/upstream'
 import { readValidatedJson } from '../../../utils/validation'
 
 /**
- * PUT /api/admin/inventory/:sku (Server: products.update).
+ * PUT /api/admin/inventory/:sku (Server: inventory.update).
  * El Server hace upsert: con un SKU inexistente CREARÍA un registro nuevo. La interfaz solo
  * llama a este endpoint con SKUs que vienen del propio listado de inventario.
  */

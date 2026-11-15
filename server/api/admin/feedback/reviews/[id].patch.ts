@@ -5,7 +5,7 @@ import { toBffError } from '../../../../utils/upstream'
 import { readValidatedJson } from '../../../../utils/validation'
 
 /**
- * PATCH /api/admin/feedback/reviews/:id (Server: admin.access).
+ * PATCH /api/admin/feedback/reviews/:id (Server: feedback.moderate).
  * Solo `hidden`; el Server recalcula la calificación visible del producto.
  */
 export default defineEventHandler(async (event) => {

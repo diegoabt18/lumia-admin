@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader eyebrow="Catálogo" title="Banners" description="Piezas visuales de la tienda por posición y vigencia.">
-      <template v-if="canUpdate" #actions>
+      <template v-if="canCreate" #actions>
         <BaseButton @click="openForm(null)">
           <template #icon><IconPlus class="h-4 w-4" stroke-width="2" aria-hidden="true" /></template>
           Nuevo banner
@@ -35,12 +35,12 @@
               <p class="truncate text-[12px] text-lumia-ink/60">
                 Destino: {{ b.ctaHref || (b.promotionId ? 'promoción' : b.categorySlug ? `categoría ${b.categorySlug}` : b.collectionSlug ? `colección ${b.collectionSlug}` : 'catálogo') }}
               </p>
-              <div v-if="canUpdate" class="flex justify-end gap-1 pt-1">
-                <BaseButton variant="ghost" size="sm" :disabled="deletingId === b.id" @click="openForm(b)">
+              <div v-if="canUpdate || canDelete" class="flex justify-end gap-1 pt-1">
+                <BaseButton v-if="canUpdate" variant="ghost" size="sm" :disabled="deletingId === b.id" @click="openForm(b)">
                   <template #icon><IconPencil class="h-4 w-4" stroke-width="1.75" aria-hidden="true" /></template>
                   Editar
                 </BaseButton>
-                <BaseButton variant="ghost" size="sm" :loading="deletingId === b.id" :disabled="Boolean(deletingId)" @click="onDelete(b)">
+                <BaseButton v-if="canDelete" variant="ghost" size="sm" :loading="deletingId === b.id" :disabled="Boolean(deletingId)" @click="onDelete(b)">
                   <template #icon><IconTrash class="h-4 w-4 text-status-danger" stroke-width="1.75" aria-hidden="true" /></template>
                   <span class="sr-only">Eliminar</span>
                 </BaseButton>
@@ -63,7 +63,7 @@ import { BANNER_POSITIONS, type BannerRow } from '#shared/schemas/banners'
 definePageMeta({
   layout: 'admin',
   title: 'Banners',
-  permissions: [PERMISSIONS.PRODUCTS_READ],
+  permissions: [PERMISSIONS.BANNERS_READ],
   breadcrumbs: [{ label: 'Catálogo' }, { label: 'Banners' }],
 })
 
@@ -71,7 +71,9 @@ const auth = useAuth()
 const { request } = useAdminApi()
 const toast = useToast()
 const { confirm } = useConfirm()
-const canUpdate = computed(() => auth.can(PERMISSIONS.PRODUCTS_UPDATE))
+const canCreate = computed(() => auth.can(PERMISSIONS.BANNERS_CREATE))
+const canUpdate = computed(() => auth.can(PERMISSIONS.BANNERS_UPDATE))
+const canDelete = computed(() => auth.can(PERMISSIONS.BANNERS_DELETE))
 
 const { data, status, error, refresh } = useAsyncData('admin-banners', () => request<{ items: BannerRow[] }>('/api/admin/banners'))
 const banners = computed(() => data.value?.items ?? [])

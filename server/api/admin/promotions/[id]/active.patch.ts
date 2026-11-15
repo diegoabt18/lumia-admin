@@ -4,7 +4,7 @@ import { serverApi } from '../../../../utils/server-api'
 import { toBffError } from '../../../../utils/upstream'
 import { readValidatedJson } from '../../../../utils/validation'
 
-/** PATCH /api/admin/promotions/:id/active (Server: products.update). */
+/** PATCH /api/admin/promotions/:id/active (Server: promotions.update). */
 export default defineEventHandler(async (event) => {
   const id = readObjectIdParam(event)
   const input = await readValidatedJson(event, promotionActiveBodySchema)

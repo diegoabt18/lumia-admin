@@ -161,6 +161,11 @@ export const PERMISSION_GROUP_LABELS: Record<string, string> = {
   account: 'Cuenta (tienda)',
   page: 'Páginas (tienda)',
   cart: 'Carrito (tienda)',
+  store: 'Configuración de la tienda',
+  promotions: 'Promociones',
+  banners: 'Banners',
+  feedback: 'Reseñas y preguntas',
+  inventory: 'Inventario',
 }
 
 /** Permiso del catálogo tal como lo devuelve el BFF (`GET /api/admin/permissions`). */

@@ -5,7 +5,7 @@ import { toBffError } from '../../../utils/upstream'
 import { readValidatedJson } from '../../../utils/validation'
 
 /**
- * PATCH /api/admin/store-currency-settings (Server: admin.access; el Server no valida el cuerpo).
+ * PATCH /api/admin/store-currency-settings (Server: store.settings.manage; el Server no valida el cuerpo).
  * Solo formato de presentación: el esquema estricto no admite `code`, porque cambiarlo no
  * convierte los precios guardados en el catálogo ni en los pedidos.
  */
