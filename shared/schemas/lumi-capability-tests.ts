@@ -40,7 +40,11 @@ export const OUTCOME_LABELS: Record<string, string> = {
 /** Estados en los que tiene sentido indicar la herramienta esperada. */
 export const STATUSES_WITH_TOOL: readonly ExpectedStatus[] = ['supported', 'missing_information']
 
-/** Herramientas del catálogo del Server (LUMI_TOOLS), todas de lectura. */
+/**
+ * Herramientas del catálogo del Server (LUMI_TOOLS), todas de lectura. Solo alimenta el selector del
+ * formulario: el BFF acepta cualquier nombre con formato válido y el Server, que tiene el registro,
+ * rechaza los que no existen. Al añadir una herramienta en el Server conviene añadirla aquí.
+ */
 export const LUMI_TOOL_NAMES = [
   'orders.lookup',
   'orders.count',
@@ -50,7 +54,11 @@ export const LUMI_TOOL_NAMES = [
   'inventory.low',
   'initiatives.list',
   'notifications.unread',
+  'products.unpriced',
 ] as const
+
+/** Nombre de herramienta con formato válido («dominio.accion»). */
+const toolName = z.string().regex(/^[a-z]+(?:\.[a-z_]+)+$/, 'Herramienta no válida.').max(60)
 
 export const TOOL_LABELS: Record<string, string> = {
   'orders.lookup': 'Buscar un pedido',
@@ -61,9 +69,11 @@ export const TOOL_LABELS: Record<string, string> = {
   'inventory.low': 'Stock bajo',
   'initiatives.list': 'Iniciativas',
   'notifications.unread': 'Notificaciones',
+  'products.unpriced': 'Productos sin precio',
 }
 
 export const STAGE_LABELS: Record<string, string> = {
+  learned: 'Aprendido (sin modelo)',
   rules: 'Reglas (sin modelo)',
   selector: 'Selector (Qwen) y Server',
   fallback: 'Sin selector: conversación',
@@ -188,7 +198,7 @@ export const addPhraseInputSchema = z
     text: z.string().trim().min(2, 'Mínimo 2 caracteres.').max(500, 'Máximo 500 caracteres.'),
     role: z.enum(PHRASE_ROLES),
     expectedStatus: z.enum(EXPECTED_STATUSES),
-    expectedTool: z.enum(LUMI_TOOL_NAMES).nullable(),
+    expectedTool: toolName.nullable(),
     critical: z.boolean(),
   })
   .strict()
@@ -200,7 +210,7 @@ export const startRunInputSchema = z.discriminatedUnion('kind', [
       kind: z.literal('single'),
       text: z.string().trim().min(2, 'Mínimo 2 caracteres.').max(500, 'Máximo 500 caracteres.'),
       expectedStatus: z.enum(EXPECTED_STATUSES).optional(),
-      expectedTool: z.enum(LUMI_TOOL_NAMES).optional(),
+      expectedTool: toolName.optional(),
       forceSelector: z.boolean(),
     })
     .strict(),

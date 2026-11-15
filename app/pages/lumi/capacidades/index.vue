@@ -23,6 +23,8 @@
     </div>
     <p v-if="statsError" role="status" class="-mt-3 mb-6 text-[13px] text-status-danger">No se pudieron cargar los indicadores: {{ statsError }}</p>
 
+    <LumiTurnMetrics />
+
     <BaseCard :padded="false">
       <div class="space-y-4 p-4 sm:p-5">
         <TableToolbar
@@ -55,7 +57,8 @@
               {{ row.title }}
             </NuxtLink>
             <BaseBadge v-if="row.possibleDuplicateOf && row.status !== 'duplicate'" tone="warning" class="ml-2">Posible duplicado</BaseBadge>
-            <span v-if="row.samples.length" class="mt-0.5 hidden max-w-[18rem] truncate md:block text-[12px] text-lumia-ink/45">«{{ row.samples[row.samples.length - 1] }}»</span>
+            <BaseBadge v-if="row.priority === 'high'" tone="danger" class="ml-2">Prioridad alta</BaseBadge>
+            <span v-if="row.samples.length" class="mt-0.5 hidden max-w-[16rem] truncate xl:block text-[12px] text-lumia-ink/45">«{{ row.samples[row.samples.length - 1] }}»</span>
           </template>
           <template #cell-module="{ row }">
             <span class="text-[13px] text-lumia-ink/70">{{ CAPABILITY_MODULE_LABELS[row.module] }}</span>
@@ -65,9 +68,6 @@
           </template>
           <template #cell-status="{ row }">
             <BaseBadge :tone="CAPABILITY_STATUS_META[row.status].tone">{{ CAPABILITY_STATUS_META[row.status].label }}</BaseBadge>
-          </template>
-          <template #cell-priority="{ row }">
-            <span class="text-[13px] text-lumia-ink/65">{{ CAPABILITY_PRIORITY_META[row.priority].label }}</span>
           </template>
           <template #cell-lastSeenAt="{ row }">
             <span class="text-[13px] text-lumia-ink/60">{{ formatDateTime(row.lastSeenAt) }}</span>
@@ -172,7 +172,6 @@ const columns: TableColumn[] = [
   { key: 'module', label: 'Módulo', hideOnMobile: true },
   { key: 'requestCount', label: 'Pedida', align: 'right' },
   { key: 'status', label: 'Estado' },
-  { key: 'priority', label: 'Prioridad', hideOnMobile: true },
   { key: 'lastSeenAt', label: 'Última vez', hideOnMobile: true },
 ]
 

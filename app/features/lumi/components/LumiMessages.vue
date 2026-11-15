@@ -21,7 +21,7 @@
     </div>
 
     <ol v-else class="space-y-4" aria-label="Conversación con Lumi">
-      <li v-for="message in lumi.messages.value" :key="message.key" class="flex" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
+      <li v-for="(message, index) in lumi.messages.value" :key="message.key" class="flex" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
         <div v-if="message.role === 'user'" class="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-lumia-ink px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-cream">
           <span class="sr-only">Tú: </span>{{ message.content }}
         </div>
@@ -104,6 +104,12 @@
             class="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse bg-lumia-gold align-middle"
             aria-hidden="true"
           />
+          <LumiFeedback
+            v-if="message.state === 'done' && questionFor(index)"
+            class="whitespace-normal"
+            :question="questionFor(index)!"
+            :conversation-id="lumi.conversationId.value"
+          />
         </div>
       </li>
     </ol>
@@ -140,6 +146,17 @@ function toolBadge(tool: { label: string; rows: number; denied: boolean }): stri
   const rows = tool.rows === 1 ? '1 resultado' : `${tool.rows} resultados`
   return `Datos de Lumia · ${rows}`
 }
+
+/** Pregunta del usuario a la que responde el mensaje `index` (para «No era esto»). */
+function questionFor(index: number): string | null {
+  const previous = lumi.messages.value[index - 1]
+  const text = previous?.role === 'user' ? previous.content.trim() : ''
+  // Ni «sí»/«no» ni una corrección («no, me refiero a…») son preguntas que enseñar.
+  const plain = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  if (text.length < 2 || NOT_A_QUESTION.test(plain)) return null
+  return text
+}
+const NOT_A_QUESTION = /^(?:si|no|ok|vale|dale|claro|gracias|cancelar)\b.{0,12}$|^(?:no,?\s+)?(?:me refiero a|me referia a|quise decir|queria decir)\b/
 
 function usePrompt(prompt: string) {
   lumi.draft.value = prompt

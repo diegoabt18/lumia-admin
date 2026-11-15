@@ -158,7 +158,19 @@ Peticiones que Lumi recibió y ninguna herramienta resuelve. El Server las regis
 | BFF | `GET /api/admin/lumi/capabilities` (filtros `status`, `module`, `priority`, `search`, `sort`; 20/50/100 por página) · `GET …/stats` · `GET …/:id` · `PATCH …/:id` · `POST …/:id/status` · `POST …/:id/merge` |
 | Esquemas | `shared/schemas/lumi-capabilities.ts` (respuestas validadas; transiciones repetidas solo para mostrar botones) |
 | Lista | Indicadores (por revisar, en marcha, peticiones de 7 días, total), filtros en la URL y tabla con la última frase pedida y la marca «Posible duplicado» |
+| Métricas (fase G) | «Cómo resuelve Lumi»: turnos de hoy, 7 o 30 días por etapa (recordatorios, correcciones, aprendido, reglas, selector y conversación), porcentaje sin modelo, llamadas al selector por cada 100 turnos y su latencia. Solo contadores. BFF: `capabilities/metrics.get` |
 | Detalle | Frases recientes **sin autor**, especificación editable, edición de título/descripción/módulo/prioridad, transiciones manuales, fusión, historial y «Copiar en Markdown» |
-| Lo que no se puede hacer | Habilitar (fase E). `validated` o `failed` solo los pone la batería del Server; ninguna transición manual lleva a `enabled` ni `validated` |
+| Activación (fase E) | Tarjeta «Activación»: requisitos que comprueba el Server (herramienta en el registro, permiso, argumentos, batería aprobada) y la casilla de documentación. «Habilitar en el chat» y «Deshabilitar» exigen `lumi.capabilities.enable`. BFF: `…/:id/enablement` (GET), `…/:id/enable` y `…/:id/disable` (POST) |
+| Lo que no se puede hacer | `validated` o `failed` solo los pone la batería del Server; `enabled` solo la activación con todos los requisitos. Una capacidad con herramienta no se fusiona en otra |
 | Fusión | Diálogo con búsqueda; la sugerida (posible duplicado) aparece primero. Solo se fusiona con una capacidad visible en la lista. La especificación de la fusionada no pasa al destino |
 | Pruebas (fase D) | «Frases de prueba» (rol, resultado y herramienta esperados, crítica; `lumi.capabilities.manage`) y «Probar» (una frase o la batería, opción de forzar el selector; `lumi.capabilities.test`). La ejecución corre en el Server en segundo plano y el panel la consulta cada 2 s. Por frase: etapa, propuesta del modelo → decisión del Server, entrada validada, herramientas ejecutadas y tiempos. BFF: `…/:id/phrases` (GET, POST), `…/:id/phrases/:phraseId` (DELETE), `…/:id/test-runs` (GET, POST), `…/:id/test-runs/:runId` (GET) |
+
+## Lumi: aprendizaje (`/lumi/aprendizaje` y botón «No era esto»)
+
+| Elemento | Detalle |
+|---|---|
+| Chat | Bajo cada respuesta terminada de Lumi: «No era esto» → consultas que el usuario puede usar (`GET /api/admin/lumi/feedback/options`) u «Otra cosa» (texto) → `POST /api/admin/lumi/feedback`. No aparece en las respuestas a «sí», «no» ni a una corrección |
+| Correcciones por texto | «no, me refiero a…» en el chat: Lumi pregunta si lo guarda y espera «sí». Todo lo resuelve el Server |
+| Panel | Lista paginada con filtros de alcance y estado, y búsqueda. Acciones: aprobar, rechazar, retirar, hacer global y eliminar (`lumi.learning.manage`). Sin identificadores de usuario |
+| Permisos | `lumi.learning.read` (menú y página) y `lumi.learning.manage` |
+| BFF | `feedback/options.get`, `feedback/index.post`, `knowledge/index.get`, `knowledge/[id]/status.post`, `knowledge/[id]/promote.post` y `knowledge/[id].delete` |

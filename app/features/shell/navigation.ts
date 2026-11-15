@@ -13,6 +13,7 @@ import {
   IconPackages,
   IconPhoto,
   IconPuzzle,
+  IconSchool,
   IconRosetteDiscount,
   IconShieldLock,
   IconSlideshow,
@@ -84,6 +85,7 @@ export const NAVIGATION: readonly NavGroup[] = [
       { label: 'Iniciativas', to: '/lumi/iniciativas', icon: IconBulb, anyOf: [PERMISSIONS.LUMI_USE], available: true },
       { label: 'Notificaciones', to: '/lumi/notificaciones', icon: IconBell, anyOf: [PERMISSIONS.LUMI_USE], available: true },
       { label: 'Capacidades', to: '/lumi/capacidades', icon: IconPuzzle, anyOf: [PERMISSIONS.LUMI_CAPABILITIES_READ], available: true },
+      { label: 'Aprendizaje', to: '/lumi/aprendizaje', icon: IconSchool, anyOf: [PERMISSIONS.LUMI_LEARNING_READ], available: true },
     ],
   },
   {

@@ -160,6 +160,12 @@ const capabilityBase = z.object({
   samples: z.array(z.string()),
   mergedInto: z.string().nullable(),
   possibleDuplicateOf: z.string().nullable(),
+  /** Herramienta del Server que la implementa (fase E). */
+  toolName: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((v) => v ?? null),
   firstSeenAt: z.string(),
   lastSeenAt: z.string(),
   createdAt: z.string(),
@@ -172,7 +178,7 @@ export type CapabilitySummary = z.infer<typeof capabilitySummarySchema>
 export const capabilityHistoryEntrySchema = z.object({
   at: z.string(),
   by: z.string(),
-  action: z.enum(['created', 'updated', 'status', 'merged_from', 'merged_into', 'tested']),
+  action: z.enum(['created', 'updated', 'status', 'merged_from', 'merged_into', 'tested', 'implemented']),
   from: z.string().optional(),
   to: z.string().optional(),
 })
@@ -270,3 +276,60 @@ export function capabilityToMarkdown(capability: Capability, examples: readonly 
   }
   return `${lines.join('\n').trim()}\n`
 }
+
+/* ───────────── Activación (fase E) ───────────── */
+
+export const enablementCheckSchema = z.object({
+  key: z.enum(['implemented', 'permission', 'arguments', 'validated', 'documented']),
+  label: z.string(),
+  ok: z.boolean(),
+  detail: z.string().nullable(),
+})
+export type EnablementCheck = z.infer<typeof enablementCheckSchema>
+
+export const enablementResponseSchema = z.object({ checks: z.array(enablementCheckSchema), canEnable: z.boolean() })
+
+export const enableCapabilityInputSchema = z.object({ documented: z.literal(true) }).strict()
+
+/* ───────────── Métricas de turnos (fase G) ───────────── */
+
+export const TURN_STAGES = ['automation', 'correction', 'learned', 'rules', 'selector', 'fallback'] as const
+export type TurnStage = (typeof TURN_STAGES)[number]
+
+export const TURN_STAGE_LABELS: Record<TurnStage, { label: string; hint: string }> = {
+  automation: { label: 'Recordatorios', hint: 'Órdenes de recordatorio resueltas por reglas' },
+  correction: { label: 'Correcciones', hint: '«No, me refiero a…» y su confirmación' },
+  learned: { label: 'Aprendido', hint: 'Frases que el equipo le enseñó (sin modelo)' },
+  rules: { label: 'Reglas', hint: 'Herramientas reconocidas sin modelo' },
+  selector: { label: 'Selector (Qwen)', hint: 'El modelo propuso y el Server decidió' },
+  fallback: { label: 'Conversación', hint: 'Sin herramienta: respondió el modelo de chat' },
+}
+
+export const TURN_METRICS_DAYS = [1, 7, 30] as const
+
+export const turnMetricsSchema = z.object({
+  days: z.number(),
+  from: z.string(),
+  to: z.string(),
+  turns: z.number(),
+  stages: z.record(z.string(), z.number()),
+  interpretations: z.record(z.string(), z.number()),
+  withoutModelRate: z.number().nullable(),
+  selectorCalls: z.number(),
+  selectorCallsPer100: z.number().nullable(),
+  selectorErrors: z.number(),
+  selectorLatencyMsAvg: z.number().nullable(),
+  selectorPromptTokensAvg: z.number().nullable(),
+  selectorCompletionTokensAvg: z.number().nullable(),
+  selectorCallsWithExamples: z.number(),
+  series: z.array(z.object({ day: z.string(), turns: z.number(), selectorCalls: z.number() })),
+})
+export type TurnMetrics = z.infer<typeof turnMetricsSchema>
+
+export const turnMetricsQuerySchema = z.object({
+  days: z.coerce
+    .number()
+    .int()
+    .refine((d) => [1, 7, 30].includes(d))
+    .catch(7),
+})

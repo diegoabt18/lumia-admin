@@ -59,7 +59,7 @@
             <NuxtLink :to="`/lumi/capacidades/${capability.possibleDuplicateOf}`" class="font-medium text-lumia-ink underline decoration-lumia-gold/60 underline-offset-4 hover:text-lumia-gold">Compararla</NuxtLink>
           </span>
         </p>
-        <BaseButton v-if="canManage" variant="secondary" size="sm" @click="mergeOpen = true">Fusionar…</BaseButton>
+        <BaseButton v-if="canMerge" variant="secondary" size="sm" @click="mergeOpen = true">Fusionar…</BaseButton>
       </div>
 
       <div class="grid gap-6 xl:grid-cols-3">
@@ -114,8 +114,16 @@
         </div>
 
         <div class="space-y-6">
+          <BaseCard v-if="!isMerged" title="Activación" description="Habilitar es manual y solo con la batería aprobada.">
+            <CapabilityActivation :capability="capability" @changed="onSaved" />
+          </BaseCard>
+
           <BaseCard title="Resumen">
             <dl class="space-y-2.5 text-sm">
+              <div v-if="capability.toolName">
+                <dt class="text-[12px] text-lumia-ink/50">Herramienta</dt>
+                <dd class="font-mono text-[12px] text-lumia-ink/80">{{ capability.toolName }}</dd>
+              </div>
               <div><dt class="text-[12px] text-lumia-ink/50">Prioridad</dt><dd class="text-lumia-ink">{{ CAPABILITY_PRIORITY_META[capability.priority].label }}</dd></div>
               <div v-if="capability.lastTest">
                 <dt class="text-[12px] text-lumia-ink/50">Última batería</dt>
@@ -144,7 +152,7 @@
                 <template #icon><IconPencil class="h-4 w-4" stroke-width="1.75" aria-hidden="true" /></template>
                 Editar
               </BaseButton>
-              <BaseButton v-if="canManage && !isMerged" variant="ghost" size="sm" @click="mergeOpen = true">
+              <BaseButton v-if="canMerge" variant="ghost" size="sm" @click="mergeOpen = true">
                 <template #icon><IconGitMerge class="h-4 w-4" stroke-width="1.75" aria-hidden="true" /></template>
                 Fusionar
               </BaseButton>
@@ -212,6 +220,8 @@ const { confirm } = useConfirm()
 const id = computed(() => String(route.params.id ?? ''))
 const canManage = computed(() => auth.can(PERMISSIONS.LUMI_CAPABILITIES_MANAGE))
 const canTest = computed(() => auth.can(PERMISSIONS.LUMI_CAPABILITIES_TEST))
+/** Una capacidad con herramienta no se fusiona en otra (el Server lo rechaza): se fusionan las demás en ella. */
+const canMerge = computed(() => canManage.value && !isMerged.value && !capability.value?.toolName)
 
 // Fase D: la batería decide el estado si la capacidad está en pruebas y hay frases de validación.
 const phrases = ref<CapabilityPhrase[]>([])
@@ -306,6 +316,8 @@ function historyLabel(entry: Capability['history'][number]): string {
       return 'Fusionada con otra capacidad'
     case 'tested':
       return 'Batería de pruebas ejecutada'
+    case 'implemented':
+      return `Implementada por la herramienta ${entry.to ?? ''}`.trim()
   }
 }
 
