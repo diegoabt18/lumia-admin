@@ -58,9 +58,11 @@ export function lumiQuickPrompts(context: LumiContextInput | null): readonly str
     return ['Resume el estado de este pedido.', '¿Qué pasos faltan para entregar este pedido?']
   }
   if (context?.kind === 'page') {
-    if (context.page === 'analytics') return ['¿Qué indicadores debería revisar en esta vista?']
-    if (context.page === 'inventory') return ['¿Qué revisar primero en el inventario?']
-    if (context.page === 'dashboard') return ['¿Qué debería revisar hoy en el panel?']
+    // Frases que resuelve una herramienta del Server con datos reales (sin modelo).
+    if (context.page === 'analytics') return ['¿Cuánto vendimos esta semana?', '¿Cuáles son los productos más vendidos este mes?']
+    if (context.page === 'inventory') return ['¿Qué productos se están agotando?']
+    if (context.page === 'orders') return ['¿Cuántos pedidos tengo por despachar?', 'Muéstrame los últimos 5 pedidos']
+    if (context.page === 'dashboard') return ['¿Cuánto vendimos hoy?', '¿Qué iniciativas urgentes tengo?']
   }
   return [
     'Redacta una respuesta amable para un cliente que pregunta por el envío.',

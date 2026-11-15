@@ -134,7 +134,7 @@ Las fechas de vigencia se editan en la **hora de la tienda** (`NUXT_PUBLIC_STORE
 - Pedidos: cambio directo de `paymentStatus` y factura HTML (`/invoice`). Mostrar ese HTML en el origen del admin requiere revisar el escape de la plantilla del Server.
 - El selector de categorías carga hasta 100 y avisa si hay más.
 
-## Lumi (asistente, fase 1)
+## Lumi (asistente)
 
 | Elemento | Detalle |
 |---|---|
@@ -142,6 +142,8 @@ Las fechas de vigencia se editan en la **hora de la tienda** (`NUXT_PUBLIC_STORE
 | BFF | `/api/admin/lumi/chat` (POST), `/api/admin/lumi/conversations` (GET), `/api/admin/lumi/conversations/:id` (GET, DELETE) |
 | Server | `/admin/lumi/*`, autorizado con `admin.access` + `lumi.use`. Reenvía a ia-asistente con el identificador del usuario |
 | Streaming | `/api/admin/lumi/chat/stream` (SSE). El BFF reenvía el stream del Server. Detener cancela la generación; el turno detenido no se guarda en el historial |
-| Límites | Sin búsqueda web. Sin acceso a datos de la tienda todavía |
+| Datos de la tienda | El Server resuelve con herramientas de solo lectura (pedidos, ventas, stock, productos, iniciativas, notificaciones) según los permisos del usuario, sin modelo. El stream emite `tool` y el chat muestra «Datos de Lumia · N resultados». Detalle: `server/docs/modules/lumi-tools.md` |
+| Acciones | Borrar una rutina pide confirmación («sí, elimínala»); nada se borra en el mismo turno |
+| Búsqueda web | Requiere `lumi.web` |
 | Renderizado | Texto plano (sin HTML ni Markdown). Las respuestas del modelo nunca se insertan como HTML |
 | Posición del icono | Solo en el navegador (localStorage, clave `lumia-admin:lumi-position:v1`); sin datos personales |

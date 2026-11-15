@@ -21,6 +21,8 @@ export interface LumiViewMessage {
   webSearch?: boolean
   /** Razonamiento aplicado al turno (también en modo automático). Solo para mostrar. */
   reasoning?: boolean
+  /** Datos de Lumia consultados por el Server para este turno. Solo para mostrar. */
+  tool?: { label: string; rows: number; denied: boolean }
 }
 
 export type LumiView = 'chat' | 'history' | 'review'
@@ -211,6 +213,8 @@ export function useLumi() {
           if (gen !== generation.value) return
           if (event.type === 'mode') {
             replaceMessage(pendingKey, { webSearch: event.webSearch, reasoning: event.reasoning })
+          } else if (event.type === 'tool') {
+            replaceMessage(pendingKey, { tool: { label: event.label, rows: event.rows, denied: event.denied } })
           } else if (event.type === 'thinking') {
             thinking += event.text
             replaceMessage(pendingKey, { thinking, state: 'streaming' })

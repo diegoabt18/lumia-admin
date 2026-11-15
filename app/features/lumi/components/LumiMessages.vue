@@ -66,6 +66,13 @@
 
         <div v-else class="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md border border-lumia-ink/10 bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-ink">
           <p
+            v-if="message.tool"
+            class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-lumia-beige/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-lumia-ink/70"
+          >
+            <IconDatabase class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
+            {{ toolBadge(message.tool) }}
+          </p>
+          <p
             v-if="message.webSearch"
             class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-lumia-beige/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-lumia-ink/70"
           >
@@ -104,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconRefresh } from '@tabler/icons-vue'
+import { IconDatabase, IconRefresh } from '@tabler/icons-vue'
 import { lumiQuickPrompts } from '~/features/lumi/utils/context'
 
 /**
@@ -120,10 +127,18 @@ const scroller = ref<HTMLElement | null>(null)
  * Etapa visible según lo que ha llegado del stream. Son estados reales, no frases que escriba el
  * modelo: no inventan progreso ni cuestan tokens.
  */
-function stageLabel(message: { content: string; thinking?: string }): string {
+function stageLabel(message: { content: string; thinking?: string; tool?: { label: string } }): string {
   if (message.content) return 'Redactando respuesta…'
+  if (message.tool && !message.thinking) return `${message.tool.label}…`
   if (message.thinking) return 'Analizando tu mensaje…'
   return 'Preparando respuesta…'
+}
+
+/** Etiqueta de los datos consultados: es un hecho del Server, no una frase del modelo. */
+function toolBadge(tool: { label: string; rows: number; denied: boolean }): string {
+  if (tool.denied) return 'Consulta sin permiso'
+  const rows = tool.rows === 1 ? '1 resultado' : `${tool.rows} resultados`
+  return `Datos de Lumia · ${rows}`
 }
 
 function usePrompt(prompt: string) {

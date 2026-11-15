@@ -116,6 +116,14 @@ export type LumiMessage = LumiConversationDetail['messages'][number]
 export const lumiStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('start'), conversationId: z.string().uuid() }),
   z.object({ type: z.literal('mode'), webSearch: z.boolean(), reasoning: z.boolean() }),
+  /** Herramienta del Server usada en el turno: datos reales consultados con los permisos del usuario. */
+  z.object({
+    type: z.literal('tool'),
+    name: z.string().max(60),
+    label: z.string().max(80),
+    rows: z.number().int().min(0),
+    denied: z.boolean(),
+  }),
   z.object({ type: z.literal('thinking'), text: z.string() }),
   z.object({ type: z.literal('token'), text: z.string() }),
   z.object({ type: z.literal('done'), conversationId: z.string().uuid() }),
