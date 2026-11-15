@@ -12,6 +12,7 @@ import {
   IconMessageCircle,
   IconPackages,
   IconPhoto,
+  IconPuzzle,
   IconRosetteDiscount,
   IconShieldLock,
   IconSlideshow,
@@ -82,6 +83,7 @@ export const NAVIGATION: readonly NavGroup[] = [
       { label: 'Automatizaciones', to: '/lumi/automatizaciones', icon: IconRobot, anyOf: [PERMISSIONS.LUMI_USE], available: true },
       { label: 'Iniciativas', to: '/lumi/iniciativas', icon: IconBulb, anyOf: [PERMISSIONS.LUMI_USE], available: true },
       { label: 'Notificaciones', to: '/lumi/notificaciones', icon: IconBell, anyOf: [PERMISSIONS.LUMI_USE], available: true },
+      { label: 'Capacidades', to: '/lumi/capacidades', icon: IconPuzzle, anyOf: [PERMISSIONS.LUMI_CAPABILITIES_READ], available: true },
     ],
   },
   {

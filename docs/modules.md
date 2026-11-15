@@ -147,3 +147,18 @@ Las fechas de vigencia se editan en la **hora de la tienda** (`NUXT_PUBLIC_STORE
 | Búsqueda web | Requiere `lumi.web` |
 | Renderizado | Texto plano (sin HTML ni Markdown). Las respuestas del modelo nunca se insertan como HTML |
 | Posición del icono | Solo en el navegador (localStorage, clave `lumia-admin:lumi-position:v1`); sin datos personales |
+
+## Lumi: capacidades que faltan (`/lumi/capacidades`)
+
+Peticiones que Lumi recibió y ninguna herramienta resuelve. El Server las registra y agrupa (fase B: `server/docs/modules/lumi-tools.md`, «Capability Manager»).
+
+| Elemento | Detalle |
+|---|---|
+| Permisos | Ver: `lumi.capabilities.read` (menú y páginas). Editar, cambiar de estado y fusionar: `lumi.capabilities.manage` (sin él, la página es de solo lectura) |
+| BFF | `GET /api/admin/lumi/capabilities` (filtros `status`, `module`, `priority`, `search`, `sort`; 20/50/100 por página) · `GET …/stats` · `GET …/:id` · `PATCH …/:id` · `POST …/:id/status` · `POST …/:id/merge` |
+| Esquemas | `shared/schemas/lumi-capabilities.ts` (respuestas validadas; transiciones repetidas solo para mostrar botones) |
+| Lista | Indicadores (por revisar, en marcha, peticiones de 7 días, total), filtros en la URL y tabla con la última frase pedida y la marca «Posible duplicado» |
+| Detalle | Frases recientes **sin autor**, especificación editable, edición de título/descripción/módulo/prioridad, transiciones manuales, fusión, historial y «Copiar en Markdown» |
+| Lo que no se puede hacer | Habilitar (fase E). `validated` o `failed` solo los pone la batería del Server; ninguna transición manual lleva a `enabled` ni `validated` |
+| Fusión | Diálogo con búsqueda; la sugerida (posible duplicado) aparece primero. Solo se fusiona con una capacidad visible en la lista. La especificación de la fusionada no pasa al destino |
+| Pruebas (fase D) | «Frases de prueba» (rol, resultado y herramienta esperados, crítica; `lumi.capabilities.manage`) y «Probar» (una frase o la batería, opción de forzar el selector; `lumi.capabilities.test`). La ejecución corre en el Server en segundo plano y el panel la consulta cada 2 s. Por frase: etapa, propuesta del modelo → decisión del Server, entrada validada, herramientas ejecutadas y tiempos. BFF: `…/:id/phrases` (GET, POST), `…/:id/phrases/:phraseId` (DELETE), `…/:id/test-runs` (GET, POST), `…/:id/test-runs/:runId` (GET) |
