@@ -55,6 +55,7 @@ export const LUMI_TOOL_NAMES = [
   'initiatives.list',
   'notifications.unread',
   'products.unpriced',
+  'products.untaxed',
 ] as const
 
 /** Nombre de herramienta con formato válido («dominio.accion»). */
@@ -70,6 +71,7 @@ export const TOOL_LABELS: Record<string, string> = {
   'initiatives.list': 'Iniciativas',
   'notifications.unread': 'Notificaciones',
   'products.unpriced': 'Productos sin precio',
+  'products.untaxed': 'Productos sin IVA',
 }
 
 export const STAGE_LABELS: Record<string, string> = {

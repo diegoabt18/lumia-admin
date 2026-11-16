@@ -41,6 +41,32 @@
           <BaseSelect :model-value="filters.sort" :options="sortOptions" aria-label="Ordenar" @update:model-value="(v) => setFilter('sort', v === 'recent' ? '' : v)" />
         </div>
 
+        <!-- Selección para exportar a Claude: se conserva al cambiar de página o de filtro. -->
+        <div class="flex flex-col gap-3 rounded-xl border border-lumia-ink/[0.07] bg-lumia-cream/40 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <label class="inline-flex cursor-pointer items-center gap-2 text-[13px] text-lumia-ink/75">
+            <input
+              type="checkbox"
+              class="h-4 w-4 rounded border-lumia-ink/25 accent-lumia-ink"
+              :checked="allVisibleSelected"
+              :indeterminate.prop="someVisibleSelected && !allVisibleSelected"
+              :disabled="!rows.length"
+              @change="toggleVisible"
+            />
+            Seleccionar las de esta página
+          </label>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[13px] text-lumia-ink/60" aria-live="polite">
+              {{ selected.size ? `${selected.size} ${selected.size === 1 ? 'seleccionada' : 'seleccionadas'}` : 'Ninguna seleccionada' }}
+            </span>
+            <BaseButton v-if="selected.size" variant="ghost" size="sm" :disabled="exporting" @click="selected = new Set()">Limpiar</BaseButton>
+            <BaseButton size="sm" :loading="exporting" :disabled="!selected.size || selected.size > EXPORT_LIMIT" @click="exportForClaude">
+              <template #icon><IconDownload class="h-4 w-4" stroke-width="1.75" aria-hidden="true" /></template>
+              Descargar para Claude
+            </BaseButton>
+          </div>
+        </div>
+        <p v-if="selected.size > EXPORT_LIMIT" class="-mt-2 text-[12px] text-status-danger">Máximo {{ EXPORT_LIMIT }} capacidades por archivo.</p>
+
         <DataTable
           :columns="columns"
           :rows="rows"
@@ -52,6 +78,15 @@
           :empty-description="hasFilters ? 'Prueba con otros filtros.' : 'Se registran cuando Lumi recibe una petición que ninguna de sus herramientas resuelve (requiere el selector activado en el Server).'"
           @retry="refresh"
         >
+          <template #cell-select="{ row }">
+            <input
+              type="checkbox"
+              class="h-4 w-4 rounded border-lumia-ink/25 accent-lumia-ink"
+              :checked="selected.has(row.id)"
+              :aria-label="`Seleccionar «${row.title}»`"
+              @change="toggle(row.id)"
+            />
+          </template>
           <template #cell-title="{ row }">
             <NuxtLink :to="`/lumi/capacidades/${row.id}`" class="font-medium text-lumia-ink hover:text-lumia-gold">
               {{ row.title }}
@@ -97,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconChevronRight, IconInbox, IconMessage2, IconPuzzle, IconRefresh, IconTools } from '@tabler/icons-vue'
+import { IconChevronRight, IconDownload, IconInbox, IconMessage2, IconPuzzle, IconRefresh, IconTools } from '@tabler/icons-vue'
 import { PERMISSIONS } from '#shared/auth/permissions'
 import {
   CAPABILITY_MODULE_LABELS,
@@ -108,10 +143,13 @@ import {
   CAPABILITY_SORTS,
   CAPABILITY_STATUS_META,
   CAPABILITY_STATUSES,
+  capabilityDetailSchema,
   capabilityStatsSchema,
   type CapabilityStatus,
   type CapabilitySummary,
 } from '#shared/schemas/lumi-capabilities'
+import { phraseListResponseSchema } from '#shared/schemas/lumi-capability-tests'
+import { buildClaudePrompt, downloadText, EXPORT_LIMIT, type CapabilityExport } from '~/features/lumi-capabilities/utils/claude-prompt'
 import { formatDateTime } from '~/features/lumi-admin/utils/format'
 import type { TableColumn } from '~/types/ui'
 
@@ -168,6 +206,8 @@ const { rows, pagination, loading, errorMessage, refresh } = useServerList<Capab
 )
 
 const columns: TableColumn[] = [
+  // Sin título: cada casilla lleva su propia etiqueta accesible («Seleccionar «…»»).
+  { key: 'select', label: '', class: 'w-8' },
   { key: 'title', label: 'Capacidad' },
   { key: 'module', label: 'Módulo', hideOnMobile: true },
   { key: 'requestCount', label: 'Pedida', align: 'right' },
@@ -199,5 +239,60 @@ function statValue(value: number | undefined): string {
 
 async function refreshAll() {
   await Promise.all([refresh(), refreshStats()])
+}
+
+/* ───────────── Exportar a Claude ───────────── */
+
+const toast = useToast()
+const { confirm } = useConfirm()
+const selected = ref<Set<string>>(new Set())
+const allVisibleSelected = computed(() => rows.value.length > 0 && rows.value.every((r) => selected.value.has(r.id)))
+const someVisibleSelected = computed(() => rows.value.some((r) => selected.value.has(r.id)))
+
+function toggle(id: string) {
+  const next = new Set(selected.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selected.value = next
+}
+
+function toggleVisible() {
+  const next = new Set(selected.value)
+  if (allVisibleSelected.value) rows.value.forEach((r) => next.delete(r.id))
+  else rows.value.forEach((r) => next.add(r.id))
+  selected.value = next
+}
+
+const exporting = ref(false)
+
+async function exportForClaude() {
+  if (!selected.value.size || selected.value.size > EXPORT_LIMIT || exporting.value) return
+  const ok = await confirm({
+    title: 'Descargar para Claude',
+    description:
+      'El archivo incluye la especificación y las frases tal como las escribió el equipo. Revisa que no lleve datos personales (nombres, teléfonos, correos) antes de compartirlo.',
+    confirmLabel: 'Descargar',
+  })
+  if (!ok) return
+  exporting.value = true
+  try {
+    const ids = [...selected.value]
+    const items: CapabilityExport[] = []
+    for (const id of ids) {
+      // Una a una: son pocas (máx. 20) y así no se satura el BFF.
+      const [detail, phrases] = await Promise.all([
+        request<unknown>(`/api/admin/lumi/capabilities/${id}`).then((raw) => capabilityDetailSchema.parse(raw)),
+        request<unknown>(`/api/admin/lumi/capabilities/${id}/phrases`).then((raw) => phraseListResponseSchema.parse(raw).items),
+      ])
+      items.push({ detail, phrases })
+    }
+    const stamp = new Date().toISOString().slice(0, 10)
+    downloadText(`lumi-capacidades-${stamp}.md`, buildClaudePrompt(items))
+    toast.success('Archivo descargado', `${items.length} ${items.length === 1 ? 'capacidad' : 'capacidades'}. Pégalo en Claude Code dentro del repositorio del Server.`)
+  } catch (e) {
+    toast.error('No se pudo preparar el archivo', toUiError(e).message)
+  } finally {
+    exporting.value = false
+  }
 }
 </script>
