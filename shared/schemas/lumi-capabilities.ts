@@ -145,6 +145,9 @@ export const capabilitySpecSchema = z.object({
 })
 export type CapabilitySpec = z.infer<typeof capabilitySpecSchema>
 
+/** Borrador con IA (Server: lumi.capabilities.manage). No se guarda hasta que el administrador lo confirma. */
+export const capabilitySpecDraftResponseSchema = z.object({ spec: capabilitySpecSchema, model: z.string() })
+
 /* ───────────── Respuestas del Server ───────────── */
 
 const capabilityBase = z.object({
