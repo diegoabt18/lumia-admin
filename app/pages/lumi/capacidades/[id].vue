@@ -95,7 +95,7 @@
               title="Frases de prueba"
               description="Qué debería pasar con cada frase. Las de validación deciden la batería; las de control solo las usa el banco de medición."
             >
-              <CapabilityPhrases :capability-id="capability.id" :can-manage="canManage" @changed="onPhrasesChanged" />
+              <CapabilityPhrases :capability="capability" :requested="requestedPhrases" :can-manage="canManage" @changed="onPhrasesChanged" />
             </BaseCard>
 
             <BaseCard
@@ -107,6 +107,8 @@
                 :can-test="canTest"
                 :runnable-phrases="runnablePhrases"
                 :decides-status="decidesStatus"
+                :capability-status="capability.status"
+                :validation-count="validationCount"
                 @finished="refresh"
               />
             </BaseCard>
@@ -231,6 +233,10 @@ const decidesStatus = computed(
     Boolean(capability.value && BATTERY_STATUSES.includes(capability.value.status)) &&
     phrases.value.some((p) => p.role === 'validation'),
 )
+const validationCount = computed(() => phrases.value.filter((p) => p.role === 'validation').length)
+/** Frases que se pidieron en el chat (las más recientes primero), para añadirlas a las pruebas con un clic. */
+const requestedPhrases = computed(() => [...(detail.value?.recentRequests.map((r) => r.message) ?? []), ...(capability.value?.samples ?? [])])
+
 function onPhrasesChanged(value: CapabilityPhrase[]) {
   phrases.value = value
 }

@@ -16,6 +16,10 @@
         <div class="text-[13px] text-lumia-ink/70">
           <p class="font-medium text-lumia-ink">Batería</p>
           <p>{{ batteryHint }}</p>
+          <p v-if="validationBlocker" role="status" class="mt-1.5 flex items-start gap-1.5 text-status-warning">
+            <IconAlertTriangle class="mt-0.5 h-4 w-4 shrink-0" stroke-width="1.75" aria-hidden="true" />
+            {{ validationBlocker }}
+          </p>
         </div>
         <BaseButton size="sm" :loading="starting === 'battery'" :disabled="busy || !runnablePhrases" @click="startBattery">
           <template #icon><IconPlayerPlay class="h-4 w-4" stroke-width="1.75" aria-hidden="true" /></template>
@@ -44,6 +48,10 @@
         <BaseBadge v-if="current.summary.batteryPassed !== null" :tone="current.summary.batteryPassed ? 'positive' : 'danger'" class="ml-2">
           {{ current.summary.batteryPassed ? 'Pasa' : 'No pasa' }}
         </BaseBadge>
+        <BaseBadge v-else-if="current.kind === 'battery'" tone="warning" class="ml-2">No valida</BaseBadge>
+      </p>
+      <p v-if="current.kind === 'battery' && current.summary && current.summary.batteryPassed === null" class="text-[12px] text-status-warning">
+        Sin frases de «Validación» la batería solo informa: no puede aprobar la capacidad aunque acierte todo.
       </p>
       <p v-if="current.status === 'running'" class="text-[13px] text-lumia-ink/55">{{ current.results.length }} frases procesadas…</p>
       <p v-if="current.error" role="alert" class="text-[13px] text-status-danger">{{ current.error }}</p>
@@ -134,7 +142,8 @@
 </template>
 
 <script setup lang="ts">
-import { IconPlayerPlay } from '@tabler/icons-vue'
+import { IconAlertTriangle, IconPlayerPlay } from '@tabler/icons-vue'
+import { CAPABILITY_STATUS_META, type CapabilityStatus } from '#shared/schemas/lumi-capabilities'
 import {
   OUTCOME_LABELS,
   REPLY_LABELS,
@@ -147,8 +156,18 @@ import {
 } from '#shared/schemas/lumi-capability-tests'
 import { formatDateTime } from '~/features/lumi-admin/utils/format'
 
-const props = defineProps<{ capabilityId: string; canTest: boolean; runnablePhrases: number; decidesStatus: boolean }>()
+const props = defineProps<{
+  capabilityId: string
+  canTest: boolean
+  runnablePhrases: number
+  decidesStatus: boolean
+  capabilityStatus: CapabilityStatus
+  validationCount: number
+}>()
 const emit = defineEmits<{ finished: [] }>()
+
+/** Espejo de BATTERY_STATUSES del Server: la batería solo decide el estado desde aquí. */
+const BATTERY_STATUSES: readonly CapabilityStatus[] = ['ready_for_testing', 'testing', 'failed', 'validated']
 
 const { request } = useAdminApi()
 const toast = useToast()
@@ -165,6 +184,18 @@ const batteryHint = computed(() => {
   if (!props.runnablePhrases) return 'Añade frases de prueba o de validación para ejecutarla.'
   const base = `${props.runnablePhrases} ${props.runnablePhrases === 1 ? 'frase' : 'frases'} (las de control no se ejecutan aquí).`
   return props.decidesStatus ? `${base} El resultado decide si la capacidad queda validada o fallida.` : base
+})
+
+/** Por qué una batería no va a poder validar la capacidad (espejo de las reglas del Server). */
+const validationBlocker = computed<string | null>(() => {
+  if (props.capabilityStatus === 'enabled') return null
+  if (!props.validationCount) {
+    return 'La batería se ejecuta, pero no puede validar: ninguna frase tiene el rol «Validación». Cambia el rol de al menos una.'
+  }
+  if (!BATTERY_STATUSES.includes(props.capabilityStatus)) {
+    return `La batería no cambia el estado mientras la capacidad esté «${CAPABILITY_STATUS_META[props.capabilityStatus].label}». Pásala antes a «Lista para probar» con los botones de arriba.`
+  }
+  return null
 })
 
 const { data: runList, error: runListError, refresh: refreshRuns } = useAsyncData(

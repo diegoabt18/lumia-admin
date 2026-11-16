@@ -218,3 +218,15 @@ export const startRunInputSchema = z.discriminatedUnion('kind', [
     .strict(),
   z.object({ kind: z.literal('battery'), forceSelector: z.boolean() }).strict(),
 ])
+
+/** Cambiar una frase sin borrarla (rol, resultado, herramienta, crítica). */
+export const updatePhraseInputSchema = z
+  .object({
+    role: z.enum(PHRASE_ROLES),
+    expectedStatus: z.enum(EXPECTED_STATUSES),
+    expectedTool: z.string().regex(/^[a-z]+(?:\.[a-z_]+)+$/).max(60).nullable(),
+    critical: z.boolean(),
+  })
+  .partial()
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, 'No hay cambios.')
