@@ -56,6 +56,7 @@ export const LUMI_TOOL_NAMES = [
   'notifications.unread',
   'products.unpriced',
   'products.untaxed',
+  'products.taxed',
 ] as const
 
 /** Nombre de herramienta con formato válido («dominio.accion»). */
@@ -72,6 +73,7 @@ export const TOOL_LABELS: Record<string, string> = {
   'notifications.unread': 'Notificaciones',
   'products.unpriced': 'Productos sin precio',
   'products.untaxed': 'Productos sin IVA',
+  'products.taxed': 'Productos con IVA',
 }
 
 export const STAGE_LABELS: Record<string, string> = {
