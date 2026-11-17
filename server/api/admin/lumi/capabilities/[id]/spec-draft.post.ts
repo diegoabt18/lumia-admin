@@ -1,7 +1,7 @@
 import { capabilitySpecDraftResponseSchema } from '#shared/schemas/lumi-capabilities'
 import { parseUpstream, readObjectIdParam } from '../../../../../utils/request-input'
 import { serverApi } from '../../../../../utils/server-api'
-import { toBffError } from '../../../../../utils/upstream'
+import { AI_GENERATION_TIMEOUT_MS, toBffError } from '../../../../../utils/upstream'
 
 /**
  * POST /api/admin/lumi/capabilities/:id/spec-draft (Server: lumi.capabilities.manage).
@@ -12,7 +12,11 @@ export default defineEventHandler(async (event) => {
   try {
     return parseUpstream(
       capabilitySpecDraftResponseSchema,
-      await serverApi(event, `/api/admin/lumi/capabilities/${id}/spec-draft`, { method: 'POST', body: {} }),
+      await serverApi(event, `/api/admin/lumi/capabilities/${id}/spec-draft`, {
+        method: 'POST',
+        body: {},
+        timeoutMs: AI_GENERATION_TIMEOUT_MS,
+      }),
       'POST /admin/lumi/capabilities/:id/spec-draft',
     )
   } catch (error) {

@@ -40,6 +40,13 @@ export interface UpstreamResponse {
   requestId: string
 }
 
+/**
+ * Tiempo máximo de las llamadas que generan texto con IA sin streaming (borradores, sugerencias).
+ * El Server limita la llamada al asistente con LUMI_ASSISTANT_TIMEOUT_MS (120 s por defecto); este
+ * margen deja que su propio error llegue al administrador en vez de cortar antes en el BFF.
+ */
+export const AI_GENERATION_TIMEOUT_MS = 130_000
+
 export class UpstreamError extends Error {
   constructor(
     readonly statusCode: number,

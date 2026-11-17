@@ -3,7 +3,7 @@ import { OBJECT_ID_PATTERN } from '#shared/schemas/common'
 import { lumiProductAssistInputSchema, lumiProductAssistResponseSchema } from '#shared/schemas/lumi'
 import { parseUpstream, readValidatedParam } from '../../../../../utils/request-input'
 import { serverApi } from '../../../../../utils/server-api'
-import { toBffError } from '../../../../../utils/upstream'
+import { AI_GENERATION_TIMEOUT_MS, toBffError } from '../../../../../utils/upstream'
 import { readValidatedJson } from '../../../../../utils/validation'
 
 /**
@@ -16,7 +16,11 @@ export default defineEventHandler(async (event) => {
   try {
     return parseUpstream(
       lumiProductAssistResponseSchema,
-      await serverApi(event, `/api/admin/lumi/products/${id}/assist`, { method: 'POST', body: input }),
+      await serverApi(event, `/api/admin/lumi/products/${id}/assist`, {
+        method: 'POST',
+        body: input,
+        timeoutMs: AI_GENERATION_TIMEOUT_MS,
+      }),
       'POST /admin/lumi/products/:id/assist',
     )
   } catch (error) {
