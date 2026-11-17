@@ -3,6 +3,7 @@ import type {
   LumiConversationDetail,
   LumiConversationSummary,
   LumiMessage,
+  LumiReference,
   LumiStreamEvent,
 } from '#shared/schemas/lumi'
 import { LUMI_MESSAGE_MAX, LUMI_RESPONSE_LENGTHS, lumiStreamEventSchema } from '#shared/schemas/lumi'
@@ -23,6 +24,11 @@ export interface LumiViewMessage {
   reasoning?: boolean
   /** Datos de Lumia consultados por el Server para este turno. Solo para mostrar. */
   tool?: { label: string; rows: number; denied: boolean }
+  /**
+   * Registros, módulos y fuentes web de la respuesta (los arma el Server con datos reales). Se
+   * guardan con el mensaje, así que también llegan al abrir una conversación del historial.
+   */
+  references?: LumiReference[]
 }
 
 export type LumiView = 'chat' | 'history' | 'review'
@@ -221,6 +227,9 @@ export function useLumi() {
           } else if (event.type === 'token') {
             answer += event.text
             replaceMessage(pendingKey, { content: answer, state: 'streaming' })
+          } else if (event.type === 'references') {
+            // Llega justo antes de `done`; se muestran cuando el mensaje queda terminado.
+            replaceMessage(pendingKey, { references: event.references })
           } else if (event.type === 'done') {
             finished = true
             conversationId.value = event.conversationId
@@ -295,6 +304,7 @@ export function useLumi() {
         role: m.role,
         content: m.content,
         state: 'done',
+        ...(m.references.length ? { references: m.references } : {}),
       }))
       conversationId.value = detail.id
       connection.value = 'idle'

@@ -75,10 +75,87 @@ export const lumiListQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).max(10_000).default(0),
 })
 
+/**
+ * Referencias de un mensaje (Server: modules/lumi/references/lumi-references.ts). Las arma el
+ * Server con ids reales o con los metadatos del buscador web; nunca traen rutas. Lumia Admin las
+ * traduce a sus rutas con una lista cerrada (app/features/lumi/utils/references.ts).
+ */
+export const LUMI_REFERENCE_ENTITIES = ['product', 'category', 'order', 'promotion'] as const
+export const LUMI_REFERENCE_MODULES = [
+  'dashboard',
+  'analytics',
+  'orders',
+  'products',
+  'inventory',
+  'categories',
+  'promotions',
+  'notifications',
+  'initiatives',
+  'automations',
+] as const
+export const LUMI_REFERENCES_MAX = 60
+
+const referenceLabel = z.string().trim().min(1).max(160)
+
+/** Solo http(s), sin credenciales. Cualquier otra URL deja la fuente como referencia no navegable. */
+export function safeExternalUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2048) return null
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    if (url.username || url.password) return null
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+export const lumiReferenceSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('admin_entity'),
+    entity: z.enum(LUMI_REFERENCE_ENTITIES),
+    id: lumiObjectIdSchema,
+    label: referenceLabel,
+  }),
+  z.object({ type: z.literal('admin_module'), module: z.enum(LUMI_REFERENCE_MODULES), label: referenceLabel }),
+  z.object({ type: z.literal('report'), report: z.enum(['sales']), label: referenceLabel }),
+  z.object({
+    type: z.literal('operation'),
+    module: z.enum(LUMI_REFERENCE_MODULES),
+    status: z.enum(['success', 'failed']),
+    label: referenceLabel,
+  }),
+  z.object({
+    type: z.literal('web_source'),
+    index: z.number().int().min(1).max(50),
+    title: z.string().max(300).nullable(),
+    url: z.preprocess(safeExternalUrl, z.string().nullable()),
+    domain: z.string().max(120).nullable(),
+    snippet: z.string().max(400).nullable(),
+    cited: z.boolean(),
+  }),
+])
+export type LumiReference = z.infer<typeof lumiReferenceSchema>
+
+/**
+ * Lista tolerante: descarta una a una las referencias inválidas (un dato raro nunca impide mostrar
+ * el mensaje) y convierte la ausencia (mensajes antiguos) en [].
+ */
+export const lumiReferencesSchema = z
+  .array(z.unknown())
+  .optional()
+  .transform((items): LumiReference[] =>
+    (items ?? []).slice(0, LUMI_REFERENCES_MAX).flatMap((item) => {
+      const parsed = lumiReferenceSchema.safeParse(item)
+      return parsed.success ? [parsed.data] : []
+    }),
+  )
+
 export const lumiChatResponseSchema = z.object({
   conversationId: z.string().uuid(),
   model: z.string(),
   response: z.string(),
+  references: lumiReferencesSchema,
 })
 
 export const lumiConversationSummarySchema = z.object({
@@ -101,6 +178,8 @@ export const lumiConversationDetailResponseSchema = z.object({
       id: z.number(),
       role: z.enum(['user', 'assistant']),
       content: z.string(),
+      /** Mensajes anteriores a las referencias: lista vacía. */
+      references: lumiReferencesSchema,
       createdAt: z.string(),
     }),
   ),
@@ -126,6 +205,8 @@ export const lumiStreamEventSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('thinking'), text: z.string() }),
   z.object({ type: z.literal('token'), text: z.string() }),
+  /** Registros, módulos o fuentes de la respuesta. Llega antes de `done`. */
+  z.object({ type: z.literal('references'), references: lumiReferencesSchema }),
   z.object({ type: z.literal('done'), conversationId: z.string().uuid() }),
   z.object({ type: z.literal('error'), message: z.string() }),
 ])

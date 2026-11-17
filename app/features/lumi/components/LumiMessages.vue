@@ -98,7 +98,10 @@
             </summary>
             <p class="mt-1.5 max-h-60 overflow-y-auto whitespace-pre-wrap break-words leading-relaxed">{{ message.thinking }}</p>
           </details>
-          <span class="sr-only">Lumi: </span>{{ message.content }}
+          <span class="sr-only">Lumi: </span><LumiReferenceRenderer
+            :content="message.content"
+            :references="message.state === 'done' ? (message.references ?? []) : []"
+          />
           <span
             v-if="message.state === 'streaming'"
             class="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse bg-lumia-gold align-middle"
