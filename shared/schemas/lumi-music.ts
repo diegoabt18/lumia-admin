@@ -35,6 +35,13 @@ export const lumiMusicStateSchema = z.object({
   volume: z.number().int().min(0).max(100),
   output: z.object({ mode: z.enum(['aux', 'bluetooth']), active: z.boolean() }),
   error: z.string().max(500).nullable(),
+  // Modos de reproducción (los aplica el servidor al acabar cada pista). Con default: un Server
+  // anterior no los envía.
+  shuffle: z.boolean().default(false),
+  repeatMode: z.enum(['off', 'one', 'all']).default('off'),
+  autoplay: z.boolean().default(false),
+  version: z.number().int().nonnegative().default(0),
+  updatedAt: z.number().int().nonnegative().nullable().default(null),
 })
 
 /** GET /api/admin/lumi/music/state. `available: false`: música apagada o asistente sin respuesta. */
@@ -45,10 +52,22 @@ export const lumiMusicStateResponseSchema = z.object({
 })
 
 const noArgs = z.object({}).strict().default({})
+const videoId = z.string().regex(/^[A-Za-z0-9_-]{11}$/)
+const queuePosition = z.number().int().min(1).max(50)
+const onOff = z.enum(['on', 'off'])
 
 /** Órdenes del reproductor (mismas que acepta el Server). Sin búsquedas ni texto libre. */
 export const lumiMusicCommandSchema = z.discriminatedUnion('tool', [
-  z.object({ tool: z.literal('music.play'), args: noArgs }).strict(),
+  // Sin argumentos reanuda o empieza la cola; con video_id (de un resultado mostrado) pone esa canción.
+  z.object({ tool: z.literal('music.play'), args: z.object({ video_id: videoId.optional() }).strict().default({}) }).strict(),
+  z.object({ tool: z.literal('music.enqueue'), args: z.object({ video_id: videoId }).strict() }).strict(),
+  z.object({ tool: z.literal('music.play_next'), args: z.object({ video_id: videoId }).strict() }).strict(),
+  z.object({ tool: z.literal('music.remove'), args: z.object({ position: queuePosition }).strict() }).strict(),
+  z.object({ tool: z.literal('music.move'), args: z.object({ position: queuePosition, to: queuePosition }).strict() }).strict(),
+  z.object({ tool: z.literal('music.clear_queue'), args: noArgs }).strict(),
+  z.object({ tool: z.literal('music.shuffle'), args: z.object({ state: onOff }).strict() }).strict(),
+  z.object({ tool: z.literal('music.repeat'), args: z.object({ repeat: z.enum(['off', 'one', 'all']) }).strict() }).strict(),
+  z.object({ tool: z.literal('music.autoplay'), args: z.object({ state: onOff }).strict() }).strict(),
   z.object({ tool: z.literal('music.pause'), args: noArgs }).strict(),
   z.object({ tool: z.literal('music.resume'), args: noArgs }).strict(),
   z.object({ tool: z.literal('music.stop'), args: noArgs }).strict(),
@@ -67,9 +86,39 @@ export const lumiMusicCommandResponseSchema = z.object({
   state: lumiMusicStateSchema.nullable(),
 })
 
+/** GET /api/admin/lumi/music/recommendations: relacionadas reales (Mix de YouTube) y del mismo artista. */
+export const lumiMusicDiscoveryResponseSchema = z.object({
+  available: z.boolean(),
+  seed: lumiMusicTrackSchema.nullable(),
+  tracks: z.array(lumiMusicTrackSchema).max(50),
+  artistTracks: z.array(lumiMusicTrackSchema).max(50),
+  artists: z.array(z.object({ name: z.string().min(1).max(200), tracks: z.number().int().nonnegative() })).max(20),
+})
+
+/** GET /api/admin/lumi/music/history y /search: lista de canciones. */
+export const lumiMusicTracksResponseSchema = z.object({
+  available: z.boolean(),
+  tracks: z.array(lumiMusicTrackSchema).max(100),
+})
+
+export const lumiMusicSearchQuerySchema = z.object({
+  q: z.string().trim().min(1).max(200),
+})
+
+export const lumiMusicRecommendationsQuerySchema = z.object({
+  videoId: videoId.optional(),
+})
+
+/** Eventos de GET /api/admin/lumi/music/stream (SSE). */
+export const lumiMusicStreamStateSchema = z.object({ state: lumiMusicStateSchema })
+export const lumiMusicStreamUnavailableSchema = z.object({ reason: z.enum(['disabled', 'unavailable']) })
+
 export type LumiMusicTrack = z.infer<typeof lumiMusicTrackSchema>
 export type LumiMusicState = z.infer<typeof lumiMusicStateSchema>
 export type LumiMusicStatus = LumiMusicState['status']
 export type LumiMusicCommand = z.input<typeof lumiMusicCommandSchema>
 export type LumiMusicStateResponse = z.infer<typeof lumiMusicStateResponseSchema>
 export type LumiMusicCommandResponse = z.infer<typeof lumiMusicCommandResponseSchema>
+export type LumiMusicRepeatMode = LumiMusicState['repeatMode']
+export type LumiMusicDiscovery = z.infer<typeof lumiMusicDiscoveryResponseSchema>
+export type LumiMusicTracksResponse = z.infer<typeof lumiMusicTracksResponseSchema>

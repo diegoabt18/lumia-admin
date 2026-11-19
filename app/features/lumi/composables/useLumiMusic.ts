@@ -1,32 +1,42 @@
 import { PERMISSIONS } from '#shared/auth/permissions'
-import type {
-  LumiMusicCommand,
-  LumiMusicCommandResponse,
-  LumiMusicState,
-  LumiMusicStateResponse,
+import {
+  lumiMusicStreamStateSchema,
+  lumiMusicStreamUnavailableSchema,
+  type LumiMusicCommand,
+  type LumiMusicCommandResponse,
+  type LumiMusicState,
+  type LumiMusicStateResponse,
 } from '#shared/schemas/lumi-music'
 
 /**
  * Estado del reproductor de música de Lumi en el navegador.
  *
  * La música suena en el servidor (nunca en el navegador). Esta es una vista de su estado real:
- *  - Llega con las respuestas del chat (evento `music`), con cada orden del reproductor y con una
- *    consulta periódica al BFF solo mientras hay un reproductor en pantalla y la pestaña está visible.
- *  - La consulta es más frecuente mientras carga o suena, y espaciada en pausa o detenida.
- *  - Entre consultas, la posición avanza en el navegador a partir de la última confirmada.
+ *  - Una única conexión SSE por pestaña (`/api/admin/lumi/music/stream`) mientras el panel de Lumi
+ *    está abierto y la pestaña visible. El Server la reparte con una sola conexión al asistente.
+ *    Solo llega un evento cuando algo cambia de verdad: no hay consultas periódicas.
+ *  - Si el stream se cae, consulta de respaldo cada 10 s (GET /state) hasta que vuelve.
+ *  - La barra de progreso avanza en el navegador desde la última posición confirmada; cuando hay
+ *    un cambio real (pausa, salto, otra canción) el servidor envía el estado y se corrige.
+ *  - Las órdenes no cambian nada en pantalla hasta que el servidor responde con el estado nuevo.
  *
- * Una única copia compartida (useState): cerrar y abrir el chat no la pierde, y al volver a montar un
- * reproductor se consulta al momento el estado real.
+ * Una única copia compartida (useState): cerrar el panel no pierde el estado (ni detiene la música),
+ * y al volver a abrirlo el stream entrega primero el estado real.
  */
 
-const POLL_LOADING_MS = 1500
-const POLL_PLAYING_MS = 4000
-const POLL_IDLE_MS = 15000
+const FALLBACK_POLL_MS = 10_000
+const RECONNECT_MS = 10_000
 const TICK_MS = 500
 
-// Temporizadores del navegador (solo se crean en el cliente, desde onMounted del reproductor).
-let pollTimer: ReturnType<typeof setTimeout> | null = null
+export type LumiMusicConnection = 'off' | 'connecting' | 'live' | 'fallback'
+export type LumiPanelTab = 'chat' | 'music'
+
+// Recursos del navegador (solo en el cliente; uno por pestaña aunque haya varios componentes).
+let source: EventSource | null = null
+let fallbackTimer: ReturnType<typeof setInterval> | null = null
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let tickTimer: ReturnType<typeof setInterval> | null = null
+let visibilityHandler: (() => void) | null = null
 
 export function useLumiMusic() {
   const state = useState<LumiMusicState | null>('lumi-music-state', () => null)
@@ -39,6 +49,9 @@ export function useLumiMusic() {
   /** Aviso de la última orden que no salió bien (texto del asistente o del BFF). */
   const notice = useState<string | null>('lumi-music-notice', () => null)
   const viewers = useState<number>('lumi-music-viewers', () => 0)
+  const connection = useState<LumiMusicConnection>('lumi-music-connection', () => 'off')
+  /** Pestaña del panel de Lumi (Chat o Música). */
+  const tab = useState<LumiPanelTab>('lumi-panel-tab', () => 'chat')
 
   const auth = useAuth()
   const { request } = useAdminApi()
@@ -50,6 +63,7 @@ export function useLumiMusic() {
     const status = state.value?.status
     return status === 'loading' || status === 'playing' || status === 'paused'
   })
+  const playing = computed(() => state.value?.status === 'playing')
 
   /** Posición mostrada: la confirmada más lo que lleva sonando desde entonces (solo si suena). */
   const position = computed(() => {
@@ -62,6 +76,9 @@ export function useLumiMusic() {
   })
 
   function apply(next: LumiMusicState) {
+    // Un estado más antiguo que el mostrado (llegó tarde) no lo reemplaza.
+    const shown = state.value
+    if (shown && next.version > 0 && shown.version > next.version && shown.generation === next.generation) return
     state.value = next
     available.value = true
     syncedAt.value = Date.now()
@@ -93,7 +110,6 @@ export function useLumiMusic() {
       if (response.state) apply(response.state)
       if (!response.available) available.value = false
       if (!response.ok) notice.value = response.text
-      schedule()
       return response.ok
     } catch (error) {
       notice.value = toUiError(error).message || 'No se pudo enviar la orden al reproductor.'
@@ -103,57 +119,130 @@ export function useLumiMusic() {
     }
   }
 
-  function nextDelay(): number {
-    const current = state.value
-    if (current?.status === 'loading') return POLL_LOADING_MS
-    if (current?.status === 'playing') {
-      // Cerca del final se consulta antes para mostrar enseguida la siguiente canción.
-      const left = current.durationSeconds ? current.durationSeconds - position.value : Infinity
-      return left < 3 ? POLL_LOADING_MS : POLL_PLAYING_MS
+  function openCenter() {
+    tab.value = 'music'
+  }
+
+  /* ───────── Conexión en tiempo real ───────── */
+
+  function stopFallback() {
+    if (fallbackTimer) clearInterval(fallbackTimer)
+    fallbackTimer = null
+  }
+
+  function startFallback() {
+    if (fallbackTimer) return
+    connection.value = 'fallback'
+    fallbackTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') void refresh()
+    }, FALLBACK_POLL_MS)
+  }
+
+  function closeStream() {
+    source?.close()
+    source = null
+    if (reconnectTimer) clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+
+  function openStream() {
+    if (source || typeof EventSource === 'undefined') {
+      if (typeof EventSource === 'undefined') startFallback()
+      return
     }
-    return POLL_IDLE_MS
-  }
-
-  function schedule() {
-    if (!import.meta.client) return
-    if (pollTimer) clearTimeout(pollTimer)
-    pollTimer = null
-    if (viewers.value <= 0) return
-    pollTimer = setTimeout(async () => {
-      if (document.visibilityState === 'visible') await refresh()
-      schedule()
-    }, nextDelay())
-  }
-
-  function onVisibility() {
-    if (document.visibilityState === 'visible') {
-      void refresh().then(schedule)
+    connection.value = 'connecting'
+    const stream = new EventSource('/api/admin/lumi/music/stream')
+    source = stream
+    stream.addEventListener('ready', () => {
+      connection.value = 'live'
+      stopFallback()
+    })
+    stream.addEventListener('state', (event) => {
+      const parsed = lumiMusicStreamStateSchema.safeParse(safeJson((event as MessageEvent<string>).data))
+      if (parsed.success) apply(parsed.data.state)
+    })
+    stream.addEventListener('unavailable', (event) => {
+      if (lumiMusicStreamUnavailableSchema.safeParse(safeJson((event as MessageEvent<string>).data)).success) {
+        available.value = false
+      }
+    })
+    stream.onerror = () => {
+      if (source !== stream) return
+      // Mientras el navegador reintenta solo, el estado se mantiene con la consulta de respaldo.
+      startFallback()
+      if (stream.readyState === EventSource.CLOSED) {
+        // Cerrado del todo (p. ej. sesión caducada o 403): se reintenta más tarde, sin bucles rápidos.
+        source = null
+        if (!reconnectTimer && viewers.value > 0) {
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null
+            if (viewers.value > 0 && document.visibilityState === 'visible') openStream()
+          }, RECONNECT_MS)
+        }
+      }
     }
   }
 
-  /** Un reproductor aparece en pantalla: consulta el estado real y empieza a seguirlo. */
+  /** El panel de Lumi se abre: un único stream por pestaña, solo mientras se ve. */
   function attach() {
-    if (!import.meta.client) return
+    if (!import.meta.client || !canRead.value) return
     viewers.value += 1
     if (viewers.value > 1) return
-    void refresh().then(schedule)
+    if (document.visibilityState === 'visible') openStream()
     tickTimer = setInterval(() => {
       if (state.value?.status === 'playing') now.value = Date.now()
     }, TICK_MS)
-    document.addEventListener('visibilitychange', onVisibility)
+    visibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        openStream() // al volver, el stream entrega primero el estado real
+      } else {
+        closeStream() // pestaña oculta: ninguna conexión ni consulta
+        stopFallback()
+        connection.value = 'off'
+      }
+    }
+    document.addEventListener('visibilitychange', visibilityHandler)
   }
 
-  /** El último reproductor desaparece: deja de consultar (la música sigue en el servidor). */
+  /** El panel se cierra: se cierra el stream (la música sigue en el servidor). */
   function detach() {
-    if (!import.meta.client) return
-    viewers.value = Math.max(0, viewers.value - 1)
+    if (!import.meta.client || viewers.value <= 0) return
+    viewers.value -= 1
     if (viewers.value > 0) return
-    if (pollTimer) clearTimeout(pollTimer)
+    closeStream()
+    stopFallback()
     if (tickTimer) clearInterval(tickTimer)
-    pollTimer = null
     tickTimer = null
-    document.removeEventListener('visibilitychange', onVisibility)
+    if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler)
+    visibilityHandler = null
+    connection.value = 'off'
   }
 
-  return { state, available, active, position, pending, notice, canRead, canControl, apply, refresh, send, attach, detach }
+  return {
+    state,
+    available,
+    active,
+    playing,
+    position,
+    pending,
+    notice,
+    connection,
+    tab,
+    canRead,
+    canControl,
+    apply,
+    refresh,
+    send,
+    openCenter,
+    attach,
+    detach,
+  }
+}
+
+function safeJson(data: string): unknown {
+  try {
+    return JSON.parse(data)
+  } catch {
+    return null
+  }
 }

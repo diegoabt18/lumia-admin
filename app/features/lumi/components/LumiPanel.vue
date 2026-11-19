@@ -24,7 +24,7 @@
         </div>
 
         <button
-          v-if="lumi.view.value === 'chat'"
+          v-if="lumi.view.value === 'chat' && !musicTab"
           type="button"
           class="panel-icon-btn inline-flex"
           aria-label="Ver historial de conversaciones"
@@ -33,7 +33,7 @@
         >
           <IconHistory class="h-[18px] w-[18px]" stroke-width="1.75" aria-hidden="true" />
         </button>
-        <button type="button" class="panel-icon-btn inline-flex" aria-label="Nueva conversación" title="Nueva conversación" :disabled="lumi.sending.value" @click="lumi.newChat()">
+        <button v-if="!musicTab" type="button" class="panel-icon-btn inline-flex" aria-label="Nueva conversación" title="Nueva conversación" :disabled="lumi.sending.value" @click="lumi.newChat()">
           <IconPlus class="h-[18px] w-[18px]" stroke-width="1.75" aria-hidden="true" />
         </button>
         <button
@@ -62,8 +62,46 @@
         </button>
       </header>
 
-      <div v-show="!lumi.minimized.value" class="flex min-h-0 flex-1 flex-col">
-        <LumiHistory v-if="lumi.view.value === 'history'" @back="lumi.view.value = 'chat'" />
+      <!-- Pestañas: Chat y Música (solo con permiso para ver la música). -->
+      <div
+        v-if="music.canRead.value && !lumi.minimized.value"
+        class="flex shrink-0 gap-1 border-b border-lumia-ink/[0.06] px-3"
+        role="tablist"
+        aria-label="Secciones de Lumi"
+      >
+        <button
+          v-for="item in TABS"
+          :id="`lumi-tab-${item.key}`"
+          :key="item.key"
+          type="button"
+          role="tab"
+          class="relative inline-flex items-center gap-1.5 px-2.5 py-2 text-[12.5px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-lumia-gold/70"
+          :class="music.tab.value === item.key ? 'text-lumia-ink' : 'text-lumia-ink/55 hover:text-lumia-ink'"
+          :aria-selected="music.tab.value === item.key ? 'true' : 'false'"
+          aria-controls="lumi-tab-panel"
+          :tabindex="music.tab.value === item.key ? 0 : -1"
+          @click="music.tab.value = item.key"
+          @keydown.right.prevent="switchTab"
+          @keydown.left.prevent="switchTab"
+        >
+          <component :is="item.icon" class="h-4 w-4" stroke-width="1.75" aria-hidden="true" />
+          {{ item.label }}
+          <!-- Indicador: hay música sonando en el servidor. -->
+          <span v-if="item.key === 'music' && music.playing.value" class="lumi-tab-eq flex h-3 items-end gap-[2px]" aria-hidden="true">
+            <span v-for="bar in 3" :key="bar" class="lumi-tab-eq-bar w-[2px] rounded-full bg-lumia-gold" />
+          </span>
+          <span v-if="item.key === 'music' && music.playing.value" class="sr-only">(sonando)</span>
+          <span
+            v-if="music.tab.value === item.key"
+            class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-lumia-ink"
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+
+      <div v-show="!lumi.minimized.value" id="lumi-tab-panel" class="flex min-h-0 flex-1 flex-col" :role="music.canRead.value ? 'tabpanel' : undefined" :aria-labelledby="music.canRead.value ? `lumi-tab-${music.tab.value}` : undefined">
+        <LumiMusicCenter v-if="musicTab" />
+        <LumiHistory v-else-if="lumi.view.value === 'history'" @back="lumi.view.value = 'chat'" />
         <LumiReviews v-else-if="lumi.view.value === 'review'" @back="lumi.view.value = 'chat'" />
 
         <template v-else>
@@ -102,6 +140,8 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconHistory,
+  IconMessageCircle,
+  IconMusic,
   IconPlus,
   IconSparkles,
   IconX,
@@ -109,6 +149,34 @@ import {
 
 const lumi = useLumi()
 const position = useLumiPosition()
+const music = useLumiMusic()
+
+const TABS = [
+  { key: 'chat', label: 'Chat', icon: IconMessageCircle },
+  { key: 'music', label: 'Música', icon: IconMusic },
+] as const
+const musicTab = computed(() => music.canRead.value && music.tab.value === 'music')
+
+function switchTab() {
+  music.tab.value = music.tab.value === 'chat' ? 'music' : 'chat'
+  nextTick(() => document.getElementById(`lumi-tab-${music.tab.value}`)?.focus())
+}
+
+/*
+ * Estado de la música en tiempo real solo mientras el panel está abierto: una conexión SSE por
+ * pestaña. Al cerrarlo se cierra la conexión; la música sigue sonando en el servidor.
+ */
+let streaming = false
+function syncMusicStream(on: boolean) {
+  if (on && !streaming) music.attach()
+  else if (!on && streaming) music.detach()
+  streaming = on
+}
+onMounted(() => {
+  syncMusicStream(lumi.open.value && music.canRead.value)
+  watch(() => lumi.open.value && music.canRead.value, syncMusicStream)
+})
+onBeforeUnmount(() => syncMusicStream(false))
 
 const contextLabel = computed(() => (lumi.pageContext.value ? lumiContextLabel(lumi.pageContext.value) : ''))
 
@@ -119,6 +187,7 @@ const footerText = computed(() => {
 })
 
 const statusLabel = computed(() => {
+  if (musicTab.value) return music.playing.value ? 'Sonando en el servidor' : 'Centro de música'
   if (lumi.view.value === 'history') return 'Historial de conversaciones'
   if (lumi.view.value === 'review') return 'Tareas pendientes por revisar'
   if (lumi.sending.value) return 'Lumi está respondiendo…'
@@ -171,6 +240,31 @@ function showHistory() {
 </script>
 
 <style scoped>
+.lumi-tab-eq-bar {
+  height: 40%;
+  animation: lumi-tab-eq 0.9s ease-in-out infinite;
+}
+.lumi-tab-eq-bar:nth-child(2) {
+  animation-delay: -0.3s;
+}
+.lumi-tab-eq-bar:nth-child(3) {
+  animation-delay: -0.6s;
+}
+@keyframes lumi-tab-eq {
+  0%,
+  100% {
+    height: 30%;
+  }
+  50% {
+    height: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lumi-tab-eq-bar {
+    animation: none;
+    height: 70%;
+  }
+}
 .panel-icon-btn {
   @apply h-8 w-8 shrink-0 items-center justify-center rounded-lg text-lumia-ink/60 transition-colors hover:bg-lumia-beige/50 hover:text-lumia-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-lumia-gold/70 disabled:cursor-not-allowed disabled:opacity-40;
 }
