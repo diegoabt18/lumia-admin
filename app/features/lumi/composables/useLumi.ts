@@ -22,8 +22,8 @@ export interface LumiViewMessage {
   webSearch?: boolean
   /** Razonamiento aplicado al turno (también en modo automático). Solo para mostrar. */
   reasoning?: boolean
-  /** Datos de Lumia consultados por el Server para este turno. Solo para mostrar. */
-  tool?: { label: string; rows: number; denied: boolean }
+  /** Herramienta del Server usada en el turno (datos de Lumia o música). Solo para mostrar. */
+  tool?: { name: string; label: string; rows: number; denied: boolean }
   /**
    * Registros, módulos y fuentes web de la respuesta (los arma el Server con datos reales). Se
    * guardan con el mensaje, así que también llegan al abrir una conversación del historial.
@@ -220,7 +220,7 @@ export function useLumi() {
           if (event.type === 'mode') {
             replaceMessage(pendingKey, { webSearch: event.webSearch, reasoning: event.reasoning })
           } else if (event.type === 'tool') {
-            replaceMessage(pendingKey, { tool: { label: event.label, rows: event.rows, denied: event.denied } })
+            replaceMessage(pendingKey, { tool: { name: event.name, label: event.label, rows: event.rows, denied: event.denied } })
           } else if (event.type === 'thinking') {
             thinking += event.text
             replaceMessage(pendingKey, { thinking, state: 'streaming' })

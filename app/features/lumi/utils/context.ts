@@ -107,6 +107,9 @@ const GENERAL_PROMPTS = [
   'Revisa la ortografía de este texto: ',
 ] as const
 
+/** Sugerencia de música (solo se muestra con music.control). La música suena en el servidor de Lumi. */
+export const LUMI_MUSIC_PROMPT = 'Ponme algo de Soda Stereo'
+
 /** Sugerencias según la pantalla. Son peticiones generales: el contexto lo aporta el Server. */
 export function lumiQuickPrompts(context: LumiContextInput | null): readonly string[] {
   if (context?.kind === 'product') {

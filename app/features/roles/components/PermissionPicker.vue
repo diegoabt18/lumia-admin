@@ -105,6 +105,7 @@ const ACTION_LABELS: Record<string, string> = {
   revoke: 'Revocar',
   security: 'Seguridad',
   cart: 'Carrito',
+  control: 'Controlar',
 }
 
 function actionLabel(permission: string) {

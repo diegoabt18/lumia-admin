@@ -78,6 +78,7 @@ export const CAPABILITY_MODULES = [
   'recordatorios',
   'notificaciones',
   'iniciativas',
+  'musica',
   'none',
 ] as const
 export type CapabilityModule = (typeof CAPABILITY_MODULES)[number]
@@ -99,6 +100,7 @@ export const CAPABILITY_MODULE_LABELS: Record<CapabilityModule, string> = {
   recordatorios: 'Recordatorios',
   notificaciones: 'Notificaciones',
   iniciativas: 'Iniciativas',
+  musica: 'Música',
   none: 'Sin módulo',
 }
 

@@ -69,7 +69,8 @@
             v-if="message.tool"
             class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-lumia-beige/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-lumia-ink/70"
           >
-            <IconDatabase class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
+            <IconMusic v-if="isMusicTool(message.tool)" class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
+            <IconDatabase v-else class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
             {{ toolBadge(message.tool) }}
           </p>
           <p
@@ -120,14 +121,20 @@
 </template>
 
 <script setup lang="ts">
-import { IconDatabase, IconRefresh } from '@tabler/icons-vue'
-import { lumiQuickPrompts } from '~/features/lumi/utils/context'
+import { IconDatabase, IconMusic, IconRefresh } from '@tabler/icons-vue'
+import { PERMISSIONS } from '#shared/auth/permissions'
+import { LUMI_MUSIC_PROMPT, lumiQuickPrompts } from '~/features/lumi/utils/context'
 
 /**
  * Lista de mensajes. El contenido se muestra como texto (nunca como HTML): las respuestas del
  * modelo no son de confianza. Sin renderizado de Markdown por ahora.
  */
-const prompts = computed(() => lumiQuickPrompts(lumi.pageContext.value))
+const auth = useAuth()
+// La música solo se sugiere a quien puede controlarla (el Server vuelve a comprobarlo).
+const prompts = computed(() => {
+  const base = lumiQuickPrompts(lumi.pageContext.value)
+  return auth.can(PERMISSIONS.MUSIC_CONTROL) ? [...base, LUMI_MUSIC_PROMPT] : base
+})
 
 const lumi = useLumi()
 const scroller = ref<HTMLElement | null>(null)
@@ -143,8 +150,13 @@ function stageLabel(message: { content: string; thinking?: string; tool?: { labe
   return 'Preparando respuesta…'
 }
 
+function isMusicTool(tool: { name?: string }): boolean {
+  return tool.name?.startsWith('music.') === true
+}
+
 /** Etiqueta de los datos consultados: es un hecho del Server, no una frase del modelo. */
-function toolBadge(tool: { label: string; rows: number; denied: boolean }): string {
+function toolBadge(tool: { name?: string; label: string; rows: number; denied: boolean }): string {
+  if (isMusicTool(tool)) return tool.denied ? 'Música sin permiso' : 'Música'
   if (tool.denied) return 'Consulta sin permiso'
   const rows = tool.rows === 1 ? '1 resultado' : `${tool.rows} resultados`
   return `Datos de Lumia · ${rows}`

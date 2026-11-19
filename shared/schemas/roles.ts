@@ -166,6 +166,7 @@ export const PERMISSION_GROUP_LABELS: Record<string, string> = {
   banners: 'Banners',
   feedback: 'Reseñas y preguntas',
   inventory: 'Inventario',
+  music: 'Música (Lumi)',
 }
 
 /** Permiso del catálogo tal como lo devuelve el BFF (`GET /api/admin/permissions`). */
