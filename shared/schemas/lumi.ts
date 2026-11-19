@@ -8,7 +8,23 @@ import { z } from 'zod'
 
 export const LUMI_MESSAGE_MAX = 4000
 
-export const LUMI_PAGES = ['dashboard', 'analytics', 'inventory', 'settings', 'products', 'orders'] as const
+export const LUMI_PAGES = [
+  'dashboard',
+  'analytics',
+  'inventory',
+  'settings',
+  'products',
+  'orders',
+  'categories',
+  'subcategories',
+  'promotions',
+  'banners',
+  'images',
+  'reviews',
+  'production',
+  'automations',
+  'initiatives',
+] as const
 export type LumiPage = (typeof LUMI_PAGES)[number]
 
 const lumiObjectIdSchema = z.string().regex(/^[a-f0-9]{24}$/i)
