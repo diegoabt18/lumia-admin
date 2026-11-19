@@ -1,5 +1,14 @@
 <template>
   <div ref="scroller" class="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+    <!-- Música sonando en el servidor sin un mensaje de música en esta conversación (p. ej. al reabrir el chat). -->
+    <div v-if="showPinnedPlayer" class="space-y-1.5">
+      <p class="lumia-eyebrow flex items-center gap-1.5 text-[10px]">
+        <IconMusic class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
+        Sonando ahora
+      </p>
+      <LumiMusicPlayer />
+    </div>
+
     <div v-if="lumi.messages.value.length === 0" class="flex h-full flex-col justify-center gap-5 py-6">
       <div>
         <p class="font-display text-[22px] leading-tight text-lumia-ink">¿En qué te ayudo?</p>
@@ -62,6 +71,23 @@
           <p class="mt-1.5 text-[11px] text-lumia-ink/55" role="status">
             Respuesta detenida. No se guardó en el historial.
           </p>
+        </div>
+
+        <!-- Respuesta de música: el texto confirmado por el reproductor y, si es la última, el reproductor en vivo. -->
+        <div v-else-if="message.music && message.key === liveMusicKey" class="flex w-full max-w-[24rem] flex-col gap-2">
+          <div class="rounded-2xl rounded-bl-md border border-lumia-ink/10 bg-white px-3.5 py-2 text-[13px] leading-relaxed text-lumia-ink/80">
+            <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-lumia-beige/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-lumia-ink/70">
+              <IconMusic class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
+              Música
+            </p>
+            <p class="whitespace-pre-wrap break-words"><span class="sr-only">Lumi: </span>{{ message.content }}</p>
+            <LumiFeedback
+              v-if="questionFor(index)"
+              :question="questionFor(index)!"
+              :conversation-id="lumi.conversationId.value"
+            />
+          </div>
+          <LumiMusicPlayer />
         </div>
 
         <div v-else class="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md border border-lumia-ink/10 bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-ink">
@@ -137,7 +163,26 @@ const prompts = computed(() => {
 })
 
 const lumi = useLumi()
+const music = useLumiMusic()
 const scroller = ref<HTMLElement | null>(null)
+
+/** Último mensaje de música terminado: solo ese muestra el reproductor en vivo (los anteriores, su texto). */
+const liveMusicKey = computed(() => {
+  const list = lumi.messages.value
+  for (let i = list.length - 1; i >= 0; i--) {
+    const message = list[i]!
+    if (message.music && message.state === 'done') return message.key
+  }
+  return null
+})
+
+/** Reproductor fijo arriba: hay música activa en el servidor y esta conversación no la muestra. */
+const showPinnedPlayer = computed(() => music.canRead.value && music.active.value && liveMusicKey.value === null)
+
+// Al abrir el chat se consulta una vez el estado real (la música sigue en el servidor aunque se cierre).
+onMounted(() => {
+  if (music.canRead.value) void music.refresh()
+})
 
 /**
  * Etapa visible según lo que ha llegado del stream. Son estados reales, no frases que escriba el

@@ -29,6 +29,8 @@ export interface LumiViewMessage {
    * guardan con el mensaje, así que también llegan al abrir una conversación del historial.
    */
   references?: LumiReference[]
+  /** La respuesta controló la música: el chat muestra el reproductor (estado en useLumiMusic). */
+  music?: boolean
 }
 
 export type LumiView = 'chat' | 'history' | 'review'
@@ -77,6 +79,7 @@ export function useLumi() {
 
   const { request } = useAdminApi()
   const auth = useAuth()
+  const music = useLumiMusic()
   const toast = useToast()
   const { confirm } = useConfirm()
   const route = useRoute()
@@ -227,6 +230,10 @@ export function useLumi() {
           } else if (event.type === 'token') {
             answer += event.text
             replaceMessage(pendingKey, { content: answer, state: 'streaming' })
+          } else if (event.type === 'music') {
+            // Estado confirmado por el reproductor del servidor (no el texto del modelo).
+            music.apply(event.state)
+            replaceMessage(pendingKey, { music: true })
           } else if (event.type === 'references') {
             // Llega justo antes de `done`; se muestran cuando el mensaje queda terminado.
             replaceMessage(pendingKey, { references: event.references })
