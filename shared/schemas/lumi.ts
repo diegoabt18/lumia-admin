@@ -75,6 +75,8 @@ export const lumiChatInputSchema = z
     webMode: z.enum(['auto', 'on', 'off']).optional(),
     /** Límite de tokens de la respuesta, elegido en el chat. */
     maxTokens: z.number().int().min(128).max(2048).optional(),
+    /** Respuesta con botón a una confirmación del equipo: el Server solo actúa sobre esa acción. */
+    confirmationId: z.string().regex(/^[a-f0-9]{24}$/).optional(),
   })
   .strict()
 
@@ -226,6 +228,18 @@ export const lumiStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('references'), references: lumiReferencesSchema }),
   /** Estado real del reproductor tras una orden de música: el chat lo muestra como reproductor. */
   z.object({ type: z.literal('music'), state: lumiMusicStateSchema }),
+  /**
+   * Acción en un equipo del usuario esperando «sí» / «no» (Lumia Desktop Agent). El chat la muestra
+   * con botones; la casilla «no volver a preguntar» solo aplica al «sí».
+   */
+  z.object({
+    type: z.literal('confirmation'),
+    id: z.string().regex(/^[a-f0-9]{24}$/),
+    summary: z.string().max(400),
+    device: z.string().max(80),
+    scope: z.string().max(400),
+    expiresAt: z.string(),
+  }),
   z.object({ type: z.literal('done'), conversationId: z.string().uuid() }),
   z.object({ type: z.literal('error'), message: z.string() }),
 ])

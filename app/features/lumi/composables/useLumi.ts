@@ -31,7 +31,27 @@ export interface LumiViewMessage {
   references?: LumiReference[]
   /** La respuesta controló la música: el chat muestra el reproductor (estado en useLumiMusic). */
   music?: boolean
+  /** Acción en un equipo esperando respuesta: el chat la muestra con botones. Solo en pantalla. */
+  confirmation?: LumiDesktopConfirmation
 }
+
+/** Confirmación de una acción del equipo (Lumia Desktop Agent) y cómo la respondió el usuario. */
+export interface LumiDesktopConfirmation {
+  id: string
+  summary: string
+  device: string
+  /** Alcance de «no volver a preguntar» («abrir páginas de example.com»). */
+  scope: string
+  expiresAt: string
+  answer?: 'yes' | 'yes_remember' | 'no'
+}
+
+/** Texto que se envía (y se ve en el chat) al pulsar cada botón. El Server lo entiende igual que escrito. */
+const CONFIRMATION_TEXT = {
+  yes: 'Sí',
+  yes_remember: 'Sí, no vuelvas a preguntar',
+  no: 'No',
+} as const
 
 export type LumiView = 'chat' | 'history' | 'review'
 export type LumiMode = 'auto' | 'on' | 'off'
@@ -124,6 +144,7 @@ export function useLumi() {
       reasoningMode: LumiMode
       webMode: LumiMode
       maxTokens: number
+      confirmationId?: string
     },
     signal: AbortSignal,
     onEvent: (event: LumiStreamEvent) => void,
@@ -182,7 +203,7 @@ export function useLumi() {
     }
   }
 
-  async function send(text?: string) {
+  async function send(text?: string, options: { confirmationId?: string } = {}) {
     const content = (text ?? draft.value).trim()
     if (!content || sending.value || content.length > LUMI_MESSAGE_MAX) return
 
@@ -216,6 +237,7 @@ export function useLumi() {
           reasoningMode: reasoningMode.value,
           webMode: webMode.value,
           maxTokens: maxTokens.value,
+          ...(options.confirmationId ? { confirmationId: options.confirmationId } : {}),
         },
         controller.signal,
         (event) => {
@@ -234,6 +256,9 @@ export function useLumi() {
             // Estado confirmado por el reproductor del servidor (no el texto del modelo).
             music.apply(event.state)
             replaceMessage(pendingKey, { music: true })
+          } else if (event.type === 'confirmation') {
+            const { type: _type, ...confirmation } = event
+            replaceMessage(pendingKey, { confirmation })
           } else if (event.type === 'references') {
             // Llega justo antes de `done`; se muestran cuando el mensaje queda terminado.
             replaceMessage(pendingKey, { references: event.references })
@@ -265,6 +290,19 @@ export function useLumi() {
       if (activeStream.value === controller) activeStream.value = null
       if (gen === generation.value) sending.value = false
     }
+  }
+
+  /**
+   * Responde a la tarjeta de confirmación del equipo. Envía el mismo texto que se podría escribir,
+   * con el identificador de la acción: el Server solo ejecuta esa (una tarjeta antigua no confirma
+   * otra más reciente). «No volver a preguntar» solo existe para el «sí».
+   */
+  async function answerConfirmation(messageKey: string, answer: 'yes' | 'yes_remember' | 'no') {
+    const message = messages.value.find((m) => m.key === messageKey)
+    const confirmation = message?.confirmation
+    if (!confirmation || confirmation.answer || sending.value) return
+    replaceMessage(messageKey, { confirmation: { ...confirmation, answer } })
+    await send(CONFIRMATION_TEXT[answer], { confirmationId: confirmation.id })
   }
 
   /** Detiene la respuesta en curso. El Server cancela la generación y no guarda el turno. */
@@ -383,6 +421,7 @@ export function useLumi() {
     reasoningMode,
     maxTokens,
     send,
+    answerConfirmation,
     stop,
     retryLast,
     newChat,

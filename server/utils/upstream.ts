@@ -240,6 +240,67 @@ export async function rawServerStream(event: H3Event, path: string, req: Upstrea
   return response
 }
 
+/**
+ * Llamada con cuerpo o respuesta binaria (archivos de Lumia Desktop Agent). Si el Server responde
+ * 2xx, la respuesta se devuelve sin leer (la descarga se retransmite tal cual); si no, se convierte
+ * en UpstreamError. `stream` es el cuerpo de una subida (sin reintento posible: se consume).
+ * `timeoutMs` cubre hasta que llegan las cabeceras de la respuesta.
+ */
+export async function rawServerBinary(
+  event: H3Event,
+  path: string,
+  req: UpstreamRequest & {
+    accept: string
+    timeoutMs: number
+    stream?: ReadableStream<Uint8Array>
+    /** Corta la llamada (p. ej. el navegador cerró la conexión de la subida). */
+    signal?: AbortSignal
+  },
+): Promise<Response> {
+  const requestId = randomUUID()
+  const url = buildUrl(path, req.query)
+  const headers: Record<string, string> = { ...buildHeaders(event, req, requestId), Accept: req.accept }
+  if (req.stream) headers['Content-Type'] = 'application/octet-stream'
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), req.timeoutMs)
+  const signal = req.signal ? AbortSignal.any([controller.signal, req.signal]) : controller.signal
+  let response: Response
+  try {
+    response = await fetch(url, {
+      method: req.method ?? 'GET',
+      headers,
+      body: req.stream,
+      // Necesario en Node para enviar un cuerpo en streaming.
+      ...(req.stream ? { duplex: 'half' } : {}),
+      redirect: 'manual',
+      signal,
+    } as RequestInit)
+  } catch (error: unknown) {
+    const timedOut = error instanceof Error && error.name === 'AbortError'
+    throw new UpstreamError(
+      timedOut ? 504 : 503,
+      timedOut ? 'UPSTREAM_TIMEOUT' : 'UPSTREAM_UNAVAILABLE',
+      timedOut ? 'El servidor de Lumia tardó demasiado en responder.' : 'No se pudo contactar el servidor de Lumia.',
+      requestId,
+    )
+  } finally {
+    clearTimeout(timer)
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    const text = await response.text().catch(() => '')
+    let data: unknown = null
+    try {
+      data = text ? JSON.parse(text) : null
+    } catch {
+      data = null
+    }
+    assertOk({ status: response.status, data, setCookies: [], requestId })
+  }
+  return response
+}
+
 /** Convierte una respuesta no exitosa del Server en UpstreamError. */
 export function assertOk(res: UpstreamResponse): UpstreamResponse {
   if (res.status >= 200 && res.status < 300) return res

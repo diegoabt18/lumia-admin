@@ -22,6 +22,7 @@
 | Roles y permisos | `/roles`, `/roles/:id` | `admin.roles.read` | Crear, duplicar, editar nombre, descripción y permisos, archivar, restaurar y eliminar (`admin.roles.manage`), con las protecciones de los puntos 37 a 42 |
 | Auditoría | `/audit-log` (pestañas: accesos, cambios de permisos) | `admin.audit.read` | — (solo lectura) |
 | Pedidos | `/orders`, `/orders/:id` | `orders.read` | Cambiar estado, notas internas, resolver solicitudes de cancelación y anticipos: configurar, registrar anticipo y saldo (`orders.update`) |
+| Dispositivos (Lumia Desktop Agent) | `/desktop`, `/desktop/:id` | `desktop.devices.read` (solo equipos propios) | Inscribir equipo con código de un solo uso, renombrar y revocar (`desktop.devices.manage`); cancelar una operación en curso (permiso de la operación); quitar acciones «sin confirmación» de Lumi (`desktop.devices.read`). En Lumi Chat, las acciones en el equipo se confirman con una tarjeta «Sí» / «No» y la casilla «No volver a preguntar». Archivos de las carpetas autorizadas: ver y descargar (`desktop.files.read`), enviar con confirmación, SHA-256 y sin reemplazar nada (`desktop.files.write`) |
 
 Los botones de escritura solo aparecen con el permiso correspondiente. El Server vuelve a autorizar cada petición.
 

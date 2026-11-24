@@ -1,3 +1,4 @@
+import { DESKTOP_MAX_FILE_BYTES } from '#shared/schemas/desktop'
 import { IMAGE_MAX_REQUEST_BYTES } from '#shared/schemas/images'
 import { throwBffError } from '../utils/upstream'
 
@@ -9,13 +10,15 @@ import { throwBffError } from '../utils/upstream'
  *   (mismo origen que sirve la app o NUXT_ALLOWED_ORIGINS).
  * - Los cuerpos deben ser JSON: evita formularios cross-site "simples" (text/plain, form-urlencoded).
  * - Límite de tamaño del cuerpo para peticiones JSON.
- * - Única excepción: las rutas de generación de imágenes aceptan multipart/form-data, con
- *   Content-Length obligatorio y un tope propio (el Origin se exige igual).
+ * - Excepciones: las rutas de generación de imágenes aceptan multipart/form-data y la subida de
+ *   archivos a un equipo acepta application/octet-stream (el propio archivo), ambas con
+ *   Content-Length obligatorio y un tope propio. El Origin se exige igual.
  */
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const MAX_JSON_BODY_BYTES = 256 * 1024
 const MULTIPART_ROUTES = new Set(['/api/admin/images/product', '/api/admin/images/site', '/api/admin/images/material'])
+const DESKTOP_UPLOAD_ROUTE = /^\/api\/admin\/desktop\/devices\/dev_[a-f0-9]{24}\/files\/upload$/
 
 function allowedOrigins(selfOrigin: string): Set<string> {
   const config = useRuntimeConfig()
@@ -51,6 +54,15 @@ export default defineEventHandler((event) => {
       }
       if (contentLength > IMAGE_MAX_REQUEST_BYTES) {
         throwBffError(413, { code: 'PAYLOAD_TOO_LARGE', message: 'Las imágenes superan el tamaño máximo por envío (40 MB).' })
+      }
+      return
+    }
+    if (DESKTOP_UPLOAD_ROUTE.test(pathname) && event.method === 'POST' && contentType === 'application/octet-stream') {
+      if (!(contentLength > 0) || getHeader(event, 'transfer-encoding')) {
+        throwBffError(411, { code: 'LENGTH_REQUIRED', message: 'Falta el tamaño del archivo.' })
+      }
+      if (contentLength > DESKTOP_MAX_FILE_BYTES) {
+        throwBffError(413, { code: 'PAYLOAD_TOO_LARGE', message: 'El archivo supera el máximo de 100 MB.' })
       }
       return
     }

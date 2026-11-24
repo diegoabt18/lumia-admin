@@ -90,6 +90,14 @@ export const PERMISSIONS = {
   FEEDBACK_MODERATE: 'feedback.moderate',
   INVENTORY_READ: 'inventory.read',
   INVENTORY_UPDATE: 'inventory.update',
+  DESKTOP_DEVICES_READ: 'desktop.devices.read',
+  DESKTOP_DEVICES_MANAGE: 'desktop.devices.manage',
+  DESKTOP_BROWSER_READ: 'desktop.browser.read',
+  DESKTOP_BROWSER_CONTROL: 'desktop.browser.control',
+  DESKTOP_APPS_READ: 'desktop.apps.read',
+  DESKTOP_APPS_CONTROL: 'desktop.apps.control',
+  DESKTOP_FILES_READ: 'desktop.files.read',
+  DESKTOP_FILES_WRITE: 'desktop.files.write',
 } as const
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

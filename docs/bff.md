@@ -97,9 +97,22 @@ Navegador ──/api/*──▶ Lumia Admin (Nitro) ──HTTP privado──▶ 
 | `POST /api/admin/orders/:id/cancellation` | `GET` + `PATCH /api/admin/orders/:id/cancellation` (exige solicitud abierta) | `orders.update` |
 | `GET /api/admin/orders/:id/payments` | `GET /api/admin/orders/:id/payments` (resumen del libro de pagos) | `orders.read` |
 | `POST /api/admin/orders/:id/payments` | `POST /api/admin/orders/:id/payments` (registra un pago; "pagado" lo decide el saldo) | `orders.update` |
+| `GET /api/admin/desktop/devices` | `GET /api/admin/desktop/devices` (solo los equipos propios; 404 del Server → `enabled: false`) | `desktop.devices.read` |
+| `GET /api/admin/desktop/devices/:id` | `GET /api/admin/desktop/devices/:id` | `desktop.devices.read` |
+| `PATCH /api/admin/desktop/devices/:id` | `PATCH /api/admin/desktop/devices/:id` `{name}` | `desktop.devices.manage` |
+| `POST /api/admin/desktop/devices/:id/revoke` | `POST /api/admin/desktop/devices/:id/revoke` (desconecta y borra sus aprobaciones) | `desktop.devices.manage` |
+| `GET /api/admin/desktop/devices/:id/executions` | `GET /api/admin/desktop/devices/:id/executions` (últimas 50, solo metadatos) | `desktop.devices.read` |
+| `POST /api/admin/desktop/enrollments` | `POST /api/admin/desktop/enrollments` (código de un solo uso, 10 min) | `desktop.devices.manage` |
+| `POST /api/admin/desktop/executions/:id/cancel` | `POST /api/admin/desktop/executions/:id/cancel` | `admin.access` + permiso de la operación |
+| `GET /api/admin/desktop/approvals` | `GET /api/admin/desktop/approvals` (404 del Server → lista vacía) | `desktop.devices.read` |
+| `GET /api/admin/desktop/devices/:id/files/roots` | `GET /api/admin/desktop/devices/:id/files/roots` | `desktop.files.read` |
+| `GET /api/admin/desktop/devices/:id/files` | `GET /api/admin/desktop/devices/:id/files?root&path` | `desktop.files.read` |
+| `GET /api/admin/desktop/devices/:id/files/download` | Igual, en streaming; solo se reenvían cabeceras validadas | `desktop.files.read` |
+| `POST /api/admin/desktop/devices/:id/files/upload` | Igual; cuerpo `application/octet-stream` reenviado con contrapresión (sin guardarlo en memoria) | `desktop.files.write` |
+| `DELETE /api/admin/desktop/approvals/:id` | `DELETE /api/admin/desktop/approvals/:id` | `desktop.devices.read` |
 | cualquier otro `/api/*` | — | 404 `NOT_FOUND` |
 
-Los identificadores se validan (ObjectId de 24 hex y SKU `[A-Za-z0-9._-]{1,80}`) antes de llamar al Server. Las brechas del Server y sus protecciones están en `docs/modules.md`.
+Los identificadores se validan (ObjectId de 24 hex y SKU `[A-Za-z0-9._-]{1,80}`) antes de llamar al Server. Los de Desktop Agent tienen su propio formato (`dev_<24 hex>`, `exe_<24 hex>`, UUID para aprobaciones; `shared/schemas/desktop.ts`). Lumi Chat acepta `confirmationId` (24 hex) y el evento SSE `confirmation`. Las brechas del Server y sus protecciones están en `docs/modules.md`.
 
 No hay proxy universal. Para añadir un endpoint, sigue la receta del punto 10 de `AGENTS.md`.
 
@@ -110,7 +123,7 @@ No hay proxy universal. Para añadir un endpoint, sigue la receta del punto 10 d
 - `server/utils/admin-session.ts`: cookies propias (ver `auth.md`).
 - `server/utils/session-profile.ts`: valida `/auth/me` y `/auth/permissions` y exige `admin.access`.
 - `server/utils/validation.ts`: `readValidatedJson`, que responde 422 con `fieldErrors`.
-- `server/middleware/request-guard.ts`: Origin, cuerpo JSON y límite de tamaño. Excepción: multipart solo en `/api/admin/images/*` (ver `modules.md`, punto 53).
+- `server/middleware/request-guard.ts`: Origin, cuerpo JSON y límite de tamaño. Excepciones: multipart solo en `/api/admin/images/*` (ver `modules.md`, punto 53) y `application/octet-stream` solo en `/api/admin/desktop/devices/:id/files/upload` (Content-Length obligatorio, máximo 100 MB).
 - `server/utils/images.ts`: lectura y validación del multipart de imágenes (`readImageUpload`) y reconstrucción para el Server.
 
 ## Formato de error hacia el navegador

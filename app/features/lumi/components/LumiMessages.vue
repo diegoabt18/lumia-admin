@@ -81,6 +81,15 @@
           <LumiMusicPlayer compact />
         </div>
 
+        <!-- Acción en un equipo del usuario: «Sí» / «No» con la casilla «no volver a preguntar». -->
+        <LumiDesktopConfirmation
+          v-else-if="message.confirmation && message.state === 'done'"
+          :confirmation="message.confirmation"
+          :latest="message.key === latestConfirmationKey"
+          :disabled="lumi.sending.value"
+          @answer="(answer) => lumi.answerConfirmation(message.key, answer)"
+        />
+
         <div v-else class="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md border border-lumia-ink/10 bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-ink">
           <p
             v-if="message.tool"
@@ -166,6 +175,15 @@ const liveMusicKey = computed(() => {
   return null
 })
 
+/** Solo la confirmación más reciente sigue vigente en el Server (cada una sustituye a la anterior). */
+const latestConfirmationKey = computed(() => {
+  const list = lumi.messages.value
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i]!.confirmation) return list[i]!.key
+  }
+  return null
+})
+
 /**
  * Etapa visible según lo que ha llegado del stream. Son estados reales, no frases que escriba el
  * modelo: no inventan progreso ni cuestan tokens.
@@ -198,7 +216,7 @@ function questionFor(index: number): string | null {
   if (text.length < 2 || NOT_A_QUESTION.test(plain)) return null
   return text
 }
-const NOT_A_QUESTION = /^(?:si|no|ok|vale|dale|claro|gracias|cancelar)\b.{0,12}$|^(?:no,?\s+)?(?:me refiero a|me referia a|quise decir|queria decir)\b/
+const NOT_A_QUESTION = /^(?:si|no|ok|vale|dale|claro|gracias|cancelar)\b.{0,12}$|^si,? no vuelvas a preguntar$|^(?:no,?\s+)?(?:me refiero a|me referia a|quise decir|queria decir)\b/
 
 function usePrompt(prompt: string) {
   lumi.draft.value = prompt

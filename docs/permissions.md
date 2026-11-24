@@ -1,6 +1,6 @@
 # Permisos y navegación
 
-- Fuente de verdad: `server/src/common/permissions/registry.ts` (73 permisos y el comodín `*`).
+- Fuente de verdad: `server/src/common/permissions/registry.ts` (89 permisos y el comodín `*`).
 - Espejo local: `shared/auth/permissions.ts`. `npm run permissions:check` falla si difiere del Server.
 - Permisos efectivos del usuario: `GET /api/auth/permissions` (RBAC dinámico: roles, overrides, temporales, delegaciones).
 - `hasPermission()` replica la semántica del Server: permiso exacto o `*`.

@@ -19,6 +19,7 @@ import {
   IconSlideshow,
   IconUsers,
   IconHistory,
+  IconDeviceDesktop,
 } from '@tabler/icons-vue'
 import { PERMISSIONS } from '#shared/auth/permissions'
 import type { NavGroup } from '~/types/ui'
@@ -86,6 +87,7 @@ export const NAVIGATION: readonly NavGroup[] = [
       { label: 'Notificaciones', to: '/lumi/notificaciones', icon: IconBell, anyOf: [PERMISSIONS.LUMI_USE], available: true },
       { label: 'Capacidades', to: '/lumi/capacidades', icon: IconPuzzle, anyOf: [PERMISSIONS.LUMI_CAPABILITIES_READ], available: true },
       { label: 'Aprendizaje', to: '/lumi/aprendizaje', icon: IconSchool, anyOf: [PERMISSIONS.LUMI_LEARNING_READ], available: true },
+      { label: 'Dispositivos', to: '/desktop', icon: IconDeviceDesktop, anyOf: [PERMISSIONS.DESKTOP_DEVICES_READ], available: true },
     ],
   },
   {
