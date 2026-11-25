@@ -79,8 +79,10 @@
 <script setup lang="ts">
 import { IconApps, IconBrowser, IconDeviceDesktop, IconPlus } from '@tabler/icons-vue'
 import { PERMISSIONS } from '#shared/auth/permissions'
-import type { DesktopApproval, DesktopDeviceListResponse } from '#shared/schemas/desktop'
+import type { DesktopDeviceListResponse } from '#shared/schemas/desktop'
 import { deviceState, osLabel } from '~/features/desktop/utils/labels'
+import { useDeviceListPolling } from '~/features/desktop/composables/useDeviceListPolling'
+import { useApprovalsPolling } from '~/features/desktop/composables/useApprovalsPolling'
 
 definePageMeta({
   layout: 'admin',
@@ -90,38 +92,30 @@ definePageMeta({
 })
 
 const auth = useAuth()
-const { request } = useAdminApi()
 const canManage = computed(() => auth.can(PERMISSIONS.DESKTOP_DEVICES_MANAGE))
 
-const { data, status, error, refresh } = useAsyncData('admin-desktop-devices', () =>
-  request<DesktopDeviceListResponse>('/api/admin/desktop/devices'),
-)
-// Activos primero; los revocados quedan al final como historial.
-const devices = computed(() =>
-  [...(data.value?.items ?? [])].sort((a, b) => Number(a.status === 'revoked') - Number(b.status === 'revoked')),
-)
-const enabled = computed(() => data.value?.enabled ?? true)
-const loading = computed(() => status.value === 'pending')
-const errorMessage = computed(() => (error.value ? toUiError(error.value).message : null))
-
+// Polling optimizado para listado de dispositivos (30s en lugar de 10s)
 const {
-  data: approvalsData,
-  status: approvalsStatus,
-  error: approvalsErr,
+  devices,
+  enabled,
+  loading,
+  error: listError,
+  refresh,
+} = useDeviceListPolling()
+const errorMessage = computed(() => (listError.value ? listError.value : null))
+
+// Approvals centralizado: evita duplicación entre páginas
+const {
+  approvals,
+  loading: approvalsLoading,
+  error: approvalsError,
   refresh: refreshApprovals,
-} = useAsyncData('admin-desktop-approvals', () => request<{ items: DesktopApproval[] }>('/api/admin/desktop/approvals'))
-const approvals = computed(() => approvalsData.value?.items ?? [])
-const approvalsLoading = computed(() => approvalsStatus.value === 'pending')
-const approvalsError = computed(() => (approvalsErr.value ? toUiError(approvalsErr.value).message : null))
+} = useApprovalsPolling()
 
 function refreshAll() {
   void refresh()
   void refreshApprovals()
 }
-
-// Estado en línea y aprobaciones (pueden cambiar desde el chat de Lumi): cada 10 s mientras la
-// pestaña está visible.
-useVisibleInterval(refreshAll, 10_000)
 
 const enrollOpen = ref(false)
 </script>

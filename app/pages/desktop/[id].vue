@@ -164,6 +164,9 @@ import {
   operationPermission,
   osLabel,
 } from '~/features/desktop/utils/labels'
+import { useDevicePolling } from '~/features/desktop/composables/useDevicePolling'
+import { useExecutionPolling } from '~/features/desktop/composables/useExecutionPolling'
+import { useApprovalsPolling } from '~/features/desktop/composables/useApprovalsPolling'
 import type { TableColumn } from '~/types/ui'
 
 definePageMeta({
@@ -181,11 +184,9 @@ const toast = useToast()
 const { confirm } = useConfirm()
 const canManage = computed(() => auth.can(PERMISSIONS.DESKTOP_DEVICES_MANAGE))
 
-const { data: device, status, error, refresh } = useAsyncData(`admin-desktop-device-${id.value}`, () =>
-  request<DesktopDevice>(`/api/admin/desktop/devices/${id.value}`),
-)
-const loading = computed(() => status.value === 'pending')
-const errorMessage = computed(() => (error.value ? toUiError(error.value).message : null))
+// Polling optimizado para dispositivo, ejecuciones y aprobaciones
+const { device, loading, error: deviceError, refresh: refreshDevice } = useDevicePolling(id)
+const errorMessage = computed(() => (deviceError.value ? deviceError.value : null))
 const state = computed(() => (device.value ? deviceState(device.value) : { label: '', tone: 'neutral' as const }))
 
 /** El agente anuncia las operaciones de archivos (fase 6) y el usuario puede verlas. */
@@ -215,17 +216,13 @@ const engines = computed(() => {
   ]
 })
 
+// Polling inteligente para ejecuciones: solo cuando hay activas
 const {
-  data: executionsData,
-  status: executionsStatus,
-  error: executionsErr,
+  executions,
+  loading: executionsLoading,
+  error: executionsError,
   refresh: refreshExecutions,
-} = useAsyncData(`admin-desktop-executions-${id.value}`, () =>
-  request<{ items: DesktopExecution[] }>(`/api/admin/desktop/devices/${id.value}/executions`),
-)
-const executions = computed(() => executionsData.value?.items ?? [])
-const executionsLoading = computed(() => executionsStatus.value === 'pending')
-const executionsError = computed(() => (executionsErr.value ? toUiError(executionsErr.value).message : null))
+} = useExecutionPolling(id)
 
 const columns: TableColumn[] = [
   { key: 'operation', label: 'Operación' },
@@ -235,25 +232,20 @@ const columns: TableColumn[] = [
   { key: 'durationMs', label: 'Duración', align: 'right', class: 'tabular-nums', hideOnMobile: true },
 ]
 
+// Approvals centralizado: evita duplicación entre páginas
 const {
-  data: approvalsData,
-  status: approvalsStatus,
-  error: approvalsErr,
+  approvals: allApprovals,
+  loading: approvalsLoading,
+  error: approvalsError,
   refresh: refreshApprovals,
-} = useAsyncData('admin-desktop-approvals', () => request<{ items: DesktopApproval[] }>('/api/admin/desktop/approvals'))
-const deviceApprovals = computed(() => (approvalsData.value?.items ?? []).filter((a) => a.deviceId === id.value))
-const approvalsLoading = computed(() => approvalsStatus.value === 'pending')
-const approvalsError = computed(() => (approvalsErr.value ? toUiError(approvalsErr.value).message : null))
+} = useApprovalsPolling()
+const deviceApprovals = computed(() => (allApprovals.value ?? []).filter((a) => a.deviceId === id.value))
 
 function refreshAll() {
-  void refresh()
+  void refreshDevice()
   void refreshExecutions()
   void refreshApprovals()
 }
-
-// Estado, historial y aprobaciones (pueden cambiar desde el chat de Lumi): cada 10 s mientras la
-// pestaña está visible.
-useVisibleInterval(refreshAll, 10_000)
 
 function canCancel(row: DesktopExecution): boolean {
   if (!DESKTOP_OPEN_STATUSES.includes(row.status)) return false
@@ -291,7 +283,9 @@ async function onRevoke() {
   try {
     await request(`/api/admin/desktop/devices/${device.value.id}/revoke`, { method: 'POST', body: {} })
     toast.success('Equipo revocado')
-    refreshAll()
+    await refreshDevice()
+    await refreshExecutions()
+    await refreshApprovals()
   } catch (e) {
     toast.error('No se pudo revocar', toUiError(e).message)
   } finally {
