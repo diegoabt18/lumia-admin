@@ -64,23 +64,6 @@
           </p>
         </div>
 
-        <!-- Respuesta de música: el texto confirmado por el reproductor y, si es la última, el reproductor en vivo. -->
-        <div v-else-if="message.music && message.key === liveMusicKey" class="flex w-full max-w-[24rem] flex-col gap-2">
-          <div class="rounded-2xl rounded-bl-md border border-lumia-ink/10 bg-white px-3.5 py-2 text-[13px] leading-relaxed text-lumia-ink/80">
-            <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-lumia-beige/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-lumia-ink/70">
-              <IconMusic class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
-              Música
-            </p>
-            <p class="whitespace-pre-wrap break-words"><span class="sr-only">Lumi: </span>{{ message.content }}</p>
-            <LumiFeedback
-              v-if="questionFor(index)"
-              :question="questionFor(index)!"
-              :conversation-id="lumi.conversationId.value"
-            />
-          </div>
-          <LumiMusicPlayer compact />
-        </div>
-
         <!-- Acción en un equipo del usuario: «Sí» / «No» con la casilla «no volver a preguntar». -->
         <LumiDesktopConfirmation
           v-else-if="message.confirmation && message.state === 'done'"
@@ -95,8 +78,7 @@
             v-if="message.tool"
             class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-lumia-beige/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-lumia-ink/70"
           >
-            <IconMusic v-if="isMusicTool(message.tool)" class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
-            <IconDatabase v-else class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
+            <IconDatabase class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
             {{ toolBadge(message.tool) }}
           </p>
           <p
@@ -147,33 +129,17 @@
 </template>
 
 <script setup lang="ts">
-import { IconDatabase, IconMusic, IconRefresh } from '@tabler/icons-vue'
-import { PERMISSIONS } from '#shared/auth/permissions'
-import { LUMI_MUSIC_PROMPT, lumiQuickPrompts } from '~/features/lumi/utils/context'
+import { IconDatabase, IconRefresh } from '@tabler/icons-vue'
+import { lumiQuickPrompts } from '~/features/lumi/utils/context'
 
 /**
  * Lista de mensajes. El contenido se muestra como texto (nunca como HTML): las respuestas del
  * modelo no son de confianza. Sin renderizado de Markdown por ahora.
  */
-const auth = useAuth()
-// La música solo se sugiere a quien puede controlarla (el Server vuelve a comprobarlo).
-const prompts = computed(() => {
-  const base = lumiQuickPrompts(lumi.pageContext.value)
-  return auth.can(PERMISSIONS.MUSIC_CONTROL) ? [...base, LUMI_MUSIC_PROMPT] : base
-})
+const prompts = computed(() => lumiQuickPrompts(lumi.pageContext.value))
 
 const lumi = useLumi()
 const scroller = ref<HTMLElement | null>(null)
-
-/** Último mensaje de música terminado: solo ese muestra el reproductor en vivo (los anteriores, su texto). */
-const liveMusicKey = computed(() => {
-  const list = lumi.messages.value
-  for (let i = list.length - 1; i >= 0; i--) {
-    const message = list[i]!
-    if (message.music && message.state === 'done') return message.key
-  }
-  return null
-})
 
 /** Solo la confirmación más reciente sigue vigente en el Server (cada una sustituye a la anterior). */
 const latestConfirmationKey = computed(() => {
@@ -195,13 +161,8 @@ function stageLabel(message: { content: string; thinking?: string; tool?: { labe
   return 'Preparando respuesta…'
 }
 
-function isMusicTool(tool: { name?: string }): boolean {
-  return tool.name?.startsWith('music.') === true
-}
-
 /** Etiqueta de los datos consultados: es un hecho del Server, no una frase del modelo. */
 function toolBadge(tool: { name?: string; label: string; rows: number; denied: boolean }): string {
-  if (isMusicTool(tool)) return tool.denied ? 'Música sin permiso' : 'Música'
   if (tool.denied) return 'Consulta sin permiso'
   const rows = tool.rows === 1 ? '1 resultado' : `${tool.rows} resultados`
   return `Datos de Lumia · ${rows}`

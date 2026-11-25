@@ -22,15 +22,13 @@ export interface LumiViewMessage {
   webSearch?: boolean
   /** Razonamiento aplicado al turno (también en modo automático). Solo para mostrar. */
   reasoning?: boolean
-  /** Herramienta del Server usada en el turno (datos de Lumia o música). Solo para mostrar. */
+  /** Herramienta del Server usada en el turno (datos de Lumia). Solo para mostrar. */
   tool?: { name: string; label: string; rows: number; denied: boolean }
   /**
    * Registros, módulos y fuentes web de la respuesta (los arma el Server con datos reales). Se
    * guardan con el mensaje, así que también llegan al abrir una conversación del historial.
    */
   references?: LumiReference[]
-  /** La respuesta controló la música: el chat muestra el reproductor (estado en useLumiMusic). */
-  music?: boolean
   /** Acción en un equipo esperando respuesta: el chat la muestra con botones. Solo en pantalla. */
   confirmation?: LumiDesktopConfirmation
 }
@@ -99,7 +97,6 @@ export function useLumi() {
 
   const { request } = useAdminApi()
   const auth = useAuth()
-  const music = useLumiMusic()
   const toast = useToast()
   const { confirm } = useConfirm()
   const route = useRoute()
@@ -252,10 +249,6 @@ export function useLumi() {
           } else if (event.type === 'token') {
             answer += event.text
             replaceMessage(pendingKey, { content: answer, state: 'streaming' })
-          } else if (event.type === 'music') {
-            // Estado confirmado por el reproductor del servidor (no el texto del modelo).
-            music.apply(event.state)
-            replaceMessage(pendingKey, { music: true })
           } else if (event.type === 'confirmation') {
             const { type: _type, ...confirmation } = event
             replaceMessage(pendingKey, { confirmation })

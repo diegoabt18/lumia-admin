@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { lumiMusicStateSchema } from './lumi-music'
 
 /**
  * Lumi (asistente del admin). La validación de entrada vive aquí; las respuestas del Server se
@@ -226,8 +225,6 @@ export const lumiStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('token'), text: z.string() }),
   /** Registros, módulos o fuentes de la respuesta. Llega antes de `done`. */
   z.object({ type: z.literal('references'), references: lumiReferencesSchema }),
-  /** Estado real del reproductor tras una orden de música: el chat lo muestra como reproductor. */
-  z.object({ type: z.literal('music'), state: lumiMusicStateSchema }),
   /**
    * Acción en un equipo del usuario esperando «sí» / «no» (Lumia Desktop Agent). El chat la muestra
    * con botones; la casilla «no volver a preguntar» solo aplica al «sí».
