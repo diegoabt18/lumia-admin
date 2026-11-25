@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { parseUpstream } from '../../../../utils/request-input'
-import { serverApi } from '../../../../utils/server-api'
-import { toBffError } from '../../../../utils/upstream'
-import { readValidatedJson } from '../../../../utils/validation'
+import { parseUpstream } from '../../../../../utils/request-input'
+import { serverApi } from '../../../../../utils/server-api'
+import { toBffError } from '../../../../../utils/upstream'
+import { readValidatedJson } from '../../../../../utils/validation'
 
 const selectionInputSchema = z.object({
   candidateIndex: z.number().int().min(0).max(4),
