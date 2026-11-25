@@ -154,7 +154,7 @@ export function useCommandAutocomplete() {
    */
   function getSelectedSuggestion(): CommandSuggestion | null {
     if (!state.isOpen || state.selectedIndex >= state.filteredSuggestions.length) return null
-    return state.filteredSuggestions[state.selectedIndex]
+    return state.filteredSuggestions[state.selectedIndex] ?? null
   }
 
   return {
