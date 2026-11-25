@@ -59,8 +59,8 @@
       </p>
     </div>
     <label for="lumi-input" class="sr-only">Mensaje para Lumi</label>
-    <div class="relative flex items-end gap-2">
-      <div class="relative flex-1">
+    <div class="relative flex items-end gap-2 overflow-visible">
+      <div class="relative flex-1 overflow-visible">
         <textarea
           id="lumi-input"
           ref="textareaRef"
@@ -76,7 +76,7 @@
         <!-- Sugerencias de autocompletado -->
         <div
           v-if="autocomplete.state.isOpen && autocomplete.state.filteredSuggestions.length > 0"
-          class="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-lumia-ink/15 bg-white shadow-lg"
+          class="absolute left-0 top-full z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-lumia-ink/15 bg-white shadow-lg"
           role="listbox"
         >
           <button
