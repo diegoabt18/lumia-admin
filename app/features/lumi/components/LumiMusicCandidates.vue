@@ -29,7 +29,7 @@
           <img
             v-if="candidate.thumbnailUrl"
             :src="candidate.thumbnailUrl"
-            :alt=""
+            alt=""
             class="h-full w-full object-cover transition-transform group-hover:scale-105"
           />
           <div v-else class="flex h-full w-full items-center justify-center bg-gradient-to-br from-lumia-beige to-lumia-cream">
