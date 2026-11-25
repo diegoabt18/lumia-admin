@@ -252,17 +252,17 @@ export function useLumi() {
           } catch {
             continue
           }
-          if (typeof json === 'object' && json !== null && 'type' in json && 'text' in json) {
-            const event = json as { type: string; text: string }
-            if (event.type === 'token') {
-              replaceMessage(pendingKey, { content: event.text, state: 'streaming' })
-            } else if (event.type === 'done') {
+          if (typeof json === 'object' && json !== null && 'text' in json) {
+            const data = json as { text: string }
+            if (parsed.event === 'token') {
+              replaceMessage(pendingKey, { content: data.text, state: 'streaming' })
+            } else if (parsed.event === 'done') {
               finished = true
-              replaceMessage(pendingKey, { content: event.text, state: 'done' })
+              replaceMessage(pendingKey, { content: data.text, state: 'done' })
               connection.value = 'ok'
-            } else if (event.type === 'error') {
+            } else if (parsed.event === 'error') {
               finished = true
-              replaceMessage(pendingKey, { content: event.text, state: 'failed' })
+              replaceMessage(pendingKey, { content: data.text, state: 'failed' })
               connection.value = 'error'
             }
           }
