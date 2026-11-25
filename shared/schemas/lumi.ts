@@ -237,6 +237,25 @@ export const lumiStreamEventSchema = z.discriminatedUnion('type', [
     scope: z.string().max(400),
     expiresAt: z.string(),
   }),
+  /**
+   * Candidatos de música cuando la confianza es media (0.72-0.87).
+   * El usuario selecciona uno y se reproduce.
+   */
+  z.object({
+    type: z.literal('music_candidates'),
+    conversationId: z.string().uuid(),
+    queryId: z.string().uuid(),
+    query: z.string(),
+    candidates: z.array(z.object({
+      id: z.string(), // YouTube video ID
+      title: z.string(),
+      artist: z.string(),
+      duration: z.number(),
+      thumbnailUrl: z.string().nullable(),
+      type: z.enum(['song', 'live', 'cover', 'remix', 'official', 'unknown']),
+    })).min(1).max(5),
+    expiresAt: z.string(),
+  }),
   z.object({ type: z.literal('done'), conversationId: z.string().uuid() }),
   z.object({ type: z.literal('error'), message: z.string() }),
 ])

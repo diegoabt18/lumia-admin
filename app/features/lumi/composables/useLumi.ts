@@ -7,10 +7,28 @@ import type {
   LumiStreamEvent,
 } from '#shared/schemas/lumi'
 import { LUMI_MESSAGE_MAX, LUMI_RESPONSE_LENGTHS, lumiStreamEventSchema } from '#shared/schemas/lumi'
+import type { LumiStreamEvent as LumiMusicCandidatesEvent } from '#shared/schemas/lumi'
 import { lumiContextForPath } from '~/features/lumi/utils/context'
 import { parseSseBlock, splitSseBuffer } from '~/features/lumi/utils/sse'
 
 /** Mensaje mostrado en el panel. Los estados transitorios solo existen en el navegador. */
+export interface LumiMusicCandidatesView {
+  queryId: string
+  query: string
+  candidates: Array<{
+    id: string
+    title: string
+    artist: string
+    duration: number
+    thumbnailUrl: string | null
+    type: 'song' | 'live' | 'cover' | 'remix' | 'official' | 'unknown'
+  }>
+  expiresAt: string
+  selectedIndex?: number
+  pendingSelection?: boolean
+  selectionError?: string
+}
+
 export interface LumiViewMessage {
   key: string
   role: 'user' | 'assistant'
@@ -31,6 +49,8 @@ export interface LumiViewMessage {
   references?: LumiReference[]
   /** Acción en un equipo esperando respuesta: el chat la muestra con botones. Solo en pantalla. */
   confirmation?: LumiDesktopConfirmation
+  /** Candidatos de música para seleccionar (CONFIRM level). Solo en pantalla. */
+  musicCandidates?: LumiMusicCandidatesView
 }
 
 /** Confirmación de una acción del equipo (Lumia Desktop Agent) y cómo la respondió el usuario. */
@@ -255,6 +275,9 @@ export function useLumi() {
           } else if (event.type === 'confirmation') {
             const { type: _type, ...confirmation } = event
             replaceMessage(pendingKey, { confirmation })
+          } else if (event.type === 'music_candidates') {
+            const { type: _type, conversationId: _convId, ...candidates } = event
+            replaceMessage(pendingKey, { musicCandidates: { ...candidates, pendingSelection: false } })
           } else if (event.type === 'references') {
             // Llega justo antes de `done`; se muestran cuando el mensaje queda terminado.
             replaceMessage(pendingKey, { references: event.references })
@@ -299,6 +322,62 @@ export function useLumi() {
     if (!confirmation || confirmation.answer || sending.value) return
     replaceMessage(messageKey, { confirmation: { ...confirmation, answer } })
     await send(CONFIRMATION_TEXT[answer], { confirmationId: confirmation.id })
+  }
+
+  /**
+   * Selecciona un candidato de música para reproducir.
+   * El Server procesa la selección y emite SSE para actualizaciones de estado.
+   */
+  async function selectMusicCandidate(
+    messageKey: string,
+    candidateIndex: number,
+    candidateId: string,
+    queryId: string,
+    deviceId?: string,
+  ) {
+    const message = messages.value.find((m) => m.key === messageKey)
+    if (!message?.musicCandidates) return
+
+    // Marcar como pendiente
+    replaceMessage(messageKey, {
+      musicCandidates: {
+        ...message.musicCandidates,
+        selectedIndex: candidateIndex,
+        pendingSelection: true,
+      },
+    })
+
+    try {
+      const response = await request<{ success: boolean; status: string }>(
+        `/api/admin/lumi/music/selection/${queryId}`,
+        {
+          method: 'POST',
+          body: { candidateIndex, candidateId, deviceId },
+        },
+      )
+
+      if (response.success) {
+        // Actualizar con el estado devuelto
+        replaceMessage(messageKey, {
+          musicCandidates: {
+            ...message.musicCandidates,
+            selectedIndex: candidateIndex,
+            pendingSelection: false,
+          },
+        })
+      } else {
+        throw new Error(`Selection failed: ${response.status}`)
+      }
+    } catch (error) {
+      replaceMessage(messageKey, {
+        musicCandidates: {
+          ...message.musicCandidates,
+          pendingSelection: false,
+          selectionError: errorText(error),
+        },
+      })
+      toast.error('No se pudo reproducir la canción', errorText(error))
+    }
   }
 
   /** Detiene la respuesta en curso. El Server cancela la generación y no guarda el turno. */
@@ -418,6 +497,7 @@ export function useLumi() {
     maxTokens,
     send,
     answerConfirmation,
+    selectMusicCandidate,
     stop,
     retryLast,
     newChat,
