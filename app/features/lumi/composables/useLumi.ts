@@ -200,6 +200,92 @@ export function useLumi() {
     }
   }
 
+  /** Detecta si el mensaje es un comando de música (/play, /reproduce, /music). */
+  function isMusicCommand(content: string): boolean {
+    return /^\/(?:play|reproduce|music)\s+/i.test(content)
+  }
+
+  /** Extrae la consulta de búsqueda del comando de música. */
+  function extractMusicQuery(content: string): string | null {
+    const match = content.match(/^\/(?:play|reproduce|music)\s+(.+)$/i)
+    return match?.[1]?.trim() ?? null
+  }
+
+  /** Ejecuta un comando de música vía Desktop Agent. */
+  async function playMusic(query: string, pendingKey: string): Promise<void> {
+    const controller = new AbortController()
+    activeStream.value = controller
+    let finished = false
+
+    try {
+      const response = await fetch('/api/admin/lumi/music/play', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify({ query }),
+        signal: controller.signal,
+      })
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { message?: string } | null
+        throw new Error(data?.message || 'Error al reproducir música')
+      }
+      if (!response.body) throw new Error('Sin respuesta del servidor.')
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const { blocks, rest } = splitSseBuffer(buffer)
+        buffer = rest
+        for (const block of blocks) {
+          const parsed = parseSseBlock(block)
+          if (!parsed) continue
+          let json: unknown
+          try {
+            json = JSON.parse(parsed.data)
+          } catch {
+            continue
+          }
+          if (typeof json === 'object' && json !== null && 'type' in json && 'text' in json) {
+            const event = json as { type: string; text: string }
+            if (event.type === 'token') {
+              replaceMessage(pendingKey, { content: event.text, state: 'streaming' })
+            } else if (event.type === 'done') {
+              finished = true
+              replaceMessage(pendingKey, { content: event.text, state: 'done' })
+              connection.value = 'ok'
+            } else if (event.type === 'error') {
+              finished = true
+              replaceMessage(pendingKey, { content: event.text, state: 'failed' })
+              connection.value = 'error'
+            }
+          }
+        }
+      }
+      reader.releaseLock()
+
+      if (!finished) {
+        replaceMessage(pendingKey, { content: 'La reproducción se interrumpió.', state: 'failed' })
+        connection.value = 'error'
+      }
+    } catch (error) {
+      if (controller.signal.aborted) {
+        replaceMessage(pendingKey, { content: 'Se canceló la reproducción.', state: 'stopped' })
+      } else {
+        replaceMessage(pendingKey, { content: errorText(error), state: 'failed' })
+        connection.value = 'error'
+      }
+    } finally {
+      if (activeStream.value === controller) activeStream.value = null
+    }
+  }
+
   async function send(text?: string, options: { confirmationId?: string } = {}) {
     const content = (text ?? draft.value).trim()
     if (!content || sending.value || content.length > LUMI_MESSAGE_MAX) return
@@ -213,6 +299,16 @@ export function useLumi() {
     ]
     if (text === undefined) draft.value = ''
     sending.value = true
+
+    // Si es un comando de música, manejarlo directamente sin enviar al servidor
+    if (isMusicCommand(content)) {
+      const query = extractMusicQuery(content)
+      if (query) {
+        await playMusic(query, pendingKey)
+        if (gen === generation.value) sending.value = false
+        return
+      }
+    }
 
     // El contexto se toma al enviar: refleja la pantalla en la que el administrador escribió.
     // En modo web no se envía ningún contexto: solo la pregunta. Con el contexto desactivado,
