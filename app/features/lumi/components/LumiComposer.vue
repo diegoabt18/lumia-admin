@@ -59,17 +59,45 @@
       </p>
     </div>
     <label for="lumi-input" class="sr-only">Mensaje para Lumi</label>
-    <div class="flex items-end gap-2">
-      <textarea
-        id="lumi-input"
-        v-model="lumi.draft.value"
-        rows="2"
-        :maxlength="LUMI_MESSAGE_MAX"
-        placeholder="Escribe un mensaje…"
-        class="min-h-[44px] max-h-40 flex-1 resize-none rounded-xl border border-lumia-ink/15 bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-ink placeholder:text-lumia-ink/40 focus:border-lumia-gold/60 focus:outline-none focus:ring-2 focus:ring-lumia-gold/20"
-        :aria-describedby="showCounter ? 'lumi-counter' : undefined"
-        @keydown="onKeydown"
-      />
+    <div class="relative flex items-end gap-2">
+      <div class="relative flex-1">
+        <textarea
+          id="lumi-input"
+          ref="textareaRef"
+          v-model="lumi.draft.value"
+          rows="2"
+          :maxlength="LUMI_MESSAGE_MAX"
+          placeholder="Escribe un mensaje… (prueba /play, /reproduce, /music)"
+          class="min-h-[44px] max-h-40 w-full resize-none rounded-xl border border-lumia-ink/15 bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-ink placeholder:text-lumia-ink/40 focus:border-lumia-gold/60 focus:outline-none focus:ring-2 focus:ring-lumia-gold/20"
+          :aria-describedby="showCounter ? 'lumi-counter' : undefined"
+          @keydown="onKeydownComposer"
+          @input="onInputChange"
+        />
+        <!-- Sugerencias de autocompletado -->
+        <div
+          v-if="autocomplete.state.isOpen && autocomplete.state.filteredSuggestions.length > 0"
+          class="absolute left-0 top-full z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-lumia-ink/15 bg-white shadow-lg"
+          role="listbox"
+        >
+          <button
+            v-for="(suggestion, index) in autocomplete.state.filteredSuggestions"
+            :key="suggestion.prefix"
+            type="button"
+            role="option"
+            :aria-selected="index === autocomplete.state.selectedIndex"
+            class="flex w-full flex-col gap-1 border-b border-lumia-ink/5 px-3 py-2 text-left transition-colors hover:bg-lumia-beige/40 focus-visible:bg-lumia-beige/60 focus-visible:outline-none last:border-b-0"
+            :class="
+              index === autocomplete.state.selectedIndex
+                ? 'bg-lumia-beige/60'
+                : ''
+            "
+            @click="selectSuggestion(suggestion)"
+          >
+            <span class="font-medium text-lumia-ink">{{ suggestion.example }}</span>
+            <span class="text-[12px] text-lumia-ink/60">{{ suggestion.description }}</span>
+          </button>
+        </div>
+      </div>
       <button
         v-if="lumi.sending.value"
         type="button"
@@ -102,6 +130,7 @@ import { IconChevronDown, IconPlayerStop, IconSend } from '@tabler/icons-vue'
 import { PERMISSIONS } from '#shared/auth/permissions'
 import { LUMI_MESSAGE_MAX, LUMI_RESPONSE_LENGTHS } from '#shared/schemas/lumi'
 import type { LumiMode } from '~/features/lumi/composables/useLumi'
+import { useCommandAutocomplete } from '~/features/lumi/composables/useCommandAutocomplete'
 
 const REASONING_OPTIONS = [
   { value: 'auto', label: 'Automático' },
@@ -117,6 +146,9 @@ const WEB_OPTIONS = [
 
 const lumi = useLumi()
 const auth = useAuth()
+const autocomplete = useCommandAutocomplete()
+const textareaRef = ref<HTMLTextAreaElement>()
+
 const canUseWeb = computed(() => auth.can(PERMISSIONS.LUMI_WEB))
 
 const showCounter = computed(() => lumi.draft.value.length > LUMI_MESSAGE_MAX * 0.75)
@@ -148,11 +180,47 @@ function chipClass(active: boolean): string {
 
 function submit() {
   if (!canSend.value) return
+  autocomplete.state.isOpen = false
   void lumi.send()
 }
 
-/** Enter envía; Shift+Enter inserta salto de línea. Respeta la composición de IME. */
-function onKeydown(event: KeyboardEvent) {
+/** Detecta cambios en el input para actualizar sugerencias. */
+function onInputChange() {
+  if (!textareaRef.value) return
+  const cursorPos = textareaRef.value.selectionStart
+  autocomplete.updateSuggestions(lumi.draft.value, cursorPos)
+}
+
+/** Selecciona una sugerencia y completa el comando. */
+function selectSuggestion(suggestion: { prefix: string }) {
+  if (!textareaRef.value) return
+  const cursorPos = textareaRef.value.selectionStart
+  const newText = autocomplete.completeCommand(lumi.draft.value, cursorPos, suggestion as any)
+  lumi.draft.value = newText
+
+  // Mover cursor después del comando completado
+  nextTick(() => {
+    if (textareaRef.value) {
+      const newPos = newText.indexOf(' ', newText.lastIndexOf('/')) + 1
+      textareaRef.value.setSelectionRange(newPos, newPos)
+      textareaRef.value.focus()
+      autocomplete.state.isOpen = false
+    }
+  })
+}
+
+/** Enter envía; Shift+Enter inserta salto de línea. Tab completa comando. Respeta la composición de IME. */
+function onKeydownComposer(event: KeyboardEvent) {
+  // Manejar navegación de sugerencias
+  if (autocomplete.handleKeydown(event, lumi.draft.value, textareaRef.value?.selectionStart ?? 0)) {
+    const selected = autocomplete.getSelectedSuggestion()
+    if (event.key === 'Tab' || event.key === 'Enter') {
+      if (selected) selectSuggestion(selected)
+    }
+    return
+  }
+
+  // Manejar Enter para enviar
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
   event.preventDefault()
   submit()
