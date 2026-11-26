@@ -7,11 +7,24 @@ import type {
   LumiStreamEvent,
 } from '#shared/schemas/lumi'
 import { LUMI_MESSAGE_MAX, LUMI_RESPONSE_LENGTHS, lumiStreamEventSchema } from '#shared/schemas/lumi'
-import type { LumiStreamEvent as LumiMusicCandidatesEvent } from '#shared/schemas/lumi'
 import { lumiContextForPath } from '~/features/lumi/utils/context'
 import { parseSseBlock, splitSseBuffer } from '~/features/lumi/utils/sse'
 
-/** Mensaje mostrado en el panel. Los estados transitorios solo existen en el navegador. */
+/**
+ * Estado de la elección: `pending` mientras el equipo responde; `playing` solo cuando el agente
+ * comprobó que el navegador quedó en el vídeo. Los demás vienen tal cual del Server.
+ */
+export type LumiMusicPlaybackStatus =
+  | 'idle'
+  | 'pending'
+  | 'playing'
+  | 'unverified'
+  | 'failed'
+  | 'offline'
+  | 'expired'
+  | 'busy'
+
+/** Vídeos de una búsqueda dudosa para que el usuario elija. Solo en pantalla. */
 export interface LumiMusicCandidatesView {
   queryId: string
   query: string
@@ -24,10 +37,12 @@ export interface LumiMusicCandidatesView {
     type: 'song' | 'live' | 'cover' | 'remix' | 'official' | 'unknown'
   }>
   expiresAt: string
-  selectedIndex?: number
-  pendingSelection?: boolean
-  selectionError?: string
+  selectedId: string | null
+  status: LumiMusicPlaybackStatus
+  statusMessage: string | null
 }
+
+/** Mensaje mostrado en el panel. Los estados transitorios solo existen en el navegador. */
 
 export interface LumiViewMessage {
   key: string
@@ -277,7 +292,9 @@ export function useLumi() {
             replaceMessage(pendingKey, { confirmation })
           } else if (event.type === 'music_candidates') {
             const { type: _type, conversationId: _convId, ...candidates } = event
-            replaceMessage(pendingKey, { musicCandidates: { ...candidates, pendingSelection: false } })
+            replaceMessage(pendingKey, {
+              musicCandidates: { ...candidates, selectedId: null, status: 'idle', statusMessage: null },
+            })
           } else if (event.type === 'references') {
             // Llega justo antes de `done`; se muestran cuando el mensaje queda terminado.
             replaceMessage(pendingKey, { references: event.references })
@@ -324,59 +341,34 @@ export function useLumi() {
     await send(CONFIRMATION_TEXT[answer], { confirmationId: confirmation.id })
   }
 
+  function patchMusicCandidates(messageKey: string, patch: Partial<LumiMusicCandidatesView>) {
+    const current = messages.value.find((m) => m.key === messageKey)?.musicCandidates
+    if (current) replaceMessage(messageKey, { musicCandidates: { ...current, ...patch } })
+  }
+
   /**
-   * Selecciona un candidato de música para reproducir.
-   * El Server procesa la selección y emite SSE para actualizaciones de estado.
+   * Pone el vídeo elegido en la tarjeta. Una sola elección a la vez por tarjeta; la respuesta llega
+   * cuando el equipo terminó, así que la tarjeta refleja el resultado real sin consultar de nuevo.
    */
-  async function selectMusicCandidate(
-    messageKey: string,
-    candidateIndex: number,
-    candidateId: string,
-    queryId: string,
-    deviceId?: string,
-  ) {
-    const message = messages.value.find((m) => m.key === messageKey)
-    if (!message?.musicCandidates) return
-
-    // Marcar como pendiente
-    replaceMessage(messageKey, {
-      musicCandidates: {
-        ...message.musicCandidates,
-        selectedIndex: candidateIndex,
-        pendingSelection: true,
-      },
-    })
-
-    try {
-      const response = await request<{ success: boolean; status: string }>(
-        `/api/admin/lumi/music/selection/${queryId}`,
-        {
-          method: 'POST',
-          body: { candidateIndex, candidateId, deviceId },
-        },
-      )
-
-      if (response.success) {
-        // Actualizar con el estado devuelto
-        replaceMessage(messageKey, {
-          musicCandidates: {
-            ...message.musicCandidates,
-            selectedIndex: candidateIndex,
-            pendingSelection: false,
-          },
-        })
-      } else {
-        throw new Error(`Selection failed: ${response.status}`)
-      }
-    } catch (error) {
-      replaceMessage(messageKey, {
-        musicCandidates: {
-          ...message.musicCandidates,
-          pendingSelection: false,
-          selectionError: errorText(error),
-        },
+  async function selectMusicCandidate(messageKey: string, candidateId: string) {
+    const view = messages.value.find((m) => m.key === messageKey)?.musicCandidates
+    if (!view || view.status === 'pending' || view.status === 'expired') return
+    if (Date.parse(view.expiresAt) <= Date.now()) {
+      patchMusicCandidates(messageKey, {
+        status: 'expired',
+        statusMessage: 'Esta búsqueda ya caducó. Vuelve a pedir la canción.',
       })
-      toast.error('No se pudo reproducir la canción', errorText(error))
+      return
+    }
+    patchMusicCandidates(messageKey, { selectedId: candidateId, status: 'pending', statusMessage: null })
+    try {
+      const response = await request<{ status: Exclude<LumiMusicPlaybackStatus, 'idle' | 'pending'>; message: string }>(
+        `/api/admin/lumi/music/selection/${view.queryId}`,
+        { method: 'POST', body: { candidateId } },
+      )
+      patchMusicCandidates(messageKey, { status: response.status, statusMessage: response.message })
+    } catch (error) {
+      patchMusicCandidates(messageKey, { status: 'failed', statusMessage: errorText(error) })
     }
   }
 

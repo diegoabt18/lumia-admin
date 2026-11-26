@@ -4,37 +4,30 @@ import { serverApi } from '../../../../../utils/server-api'
 import { toBffError } from '../../../../../utils/upstream'
 import { readValidatedJson } from '../../../../../utils/validation'
 
+const paramsSchema = z.object({ queryId: z.string().uuid() })
+
 const selectionInputSchema = z.object({
-  candidateIndex: z.number().int().min(0).max(4),
-  candidateId: z.string().min(1),
-  deviceId: z.string().optional(),
+  candidateId: z.string().regex(/^[0-9a-f]{16}$/),
 })
 
 const selectionResponseSchema = z.object({
-  success: z.boolean(),
-  status: z.enum(['pending', 'playing', 'failed', 'offline', 'expired']),
+  status: z.enum(['playing', 'unverified', 'failed', 'offline', 'expired', 'busy']),
+  message: z.string(),
 })
 
 /**
- * POST /api/admin/lumi/music/selection/[queryId]
- * Selecciona un candidato de música para reproducir.
- * Reenvía a Server: POST /api/admin/lumi/music/selection/{queryId}
+ * Vídeo elegido en la tarjeta de candidatos de Lumi. El Server valida que la búsqueda sea del
+ * usuario y siga vigente, ordena el clic al equipo y responde con el resultado que verificó el agente.
  */
 export default defineEventHandler(async (event) => {
-  const queryId = getRouterParam(event, 'queryId')
-  if (!queryId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(queryId)) {
-    throw createError({
-      statusCode: 400,
-      message: 'queryId inválido',
-    })
-  }
-
+  const params = paramsSchema.safeParse({ queryId: getRouterParam(event, 'queryId') })
+  if (!params.success) throw createError({ statusCode: 400, message: 'Búsqueda no válida' })
   const input = await readValidatedJson(event, selectionInputSchema)
 
   try {
     return parseUpstream(
       selectionResponseSchema,
-      await serverApi(event, `/api/admin/lumi/music/selection/${queryId}`, {
+      await serverApi(event, `/api/admin/lumi/music/selection/${params.data.queryId}`, {
         method: 'POST',
         body: input,
       }),

@@ -73,12 +73,11 @@
           @answer="(answer) => lumi.answerConfirmation(message.key, answer)"
         />
 
-        <!-- Candidatos de música para seleccionar. -->
+        <!-- Búsqueda de música dudosa: el usuario elige el vídeo. -->
         <LumiMusicCandidates
-          v-else-if="message.musicCandidates"
+          v-else-if="message.musicCandidates && message.state === 'done'"
           :candidates="message.musicCandidates"
-          :disabled="lumi.sending.value"
-          @select="(index, candidateId) => lumi.selectMusicCandidate(message.key, index, candidateId, message.musicCandidates!.queryId)"
+          @select="(candidateId) => lumi.selectMusicCandidate(message.key, candidateId)"
         />
 
         <div v-else class="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md border border-lumia-ink/10 bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-lumia-ink">

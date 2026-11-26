@@ -1,151 +1,133 @@
 <template>
-  <div class="w-full max-w-[85%] space-y-3">
-    <p class="text-[13px] text-lumia-ink/70">Encontré varios vídeos. Selecciona uno:</p>
+  <div class="w-full max-w-[26rem] rounded-2xl rounded-bl-md border border-lumia-gold/40 bg-white px-3.5 py-3 text-[14px] leading-relaxed text-lumia-ink">
+    <p class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-lumia-beige/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-lumia-ink/70">
+      <IconBrandYoutube class="h-3 w-3" stroke-width="1.75" aria-hidden="true" />
+      YouTube
+    </p>
+    <p :id="headingId" class="break-words">
+      <span class="sr-only">Lumi: </span>{{ heading }}
+    </p>
 
-    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-      <button
-        v-for="(candidate, index) in candidates.candidates"
-        :key="candidate.id"
-        type="button"
-        :aria-label="`${candidate.title} por ${candidate.artist}`"
-        :class="[
-          'group relative overflow-hidden rounded-xl border-2 transition-all duration-200',
-          selectedIndex === index
-            ? 'border-lumia-gold bg-lumia-cream/40 ring-2 ring-lumia-gold/30'
-            : 'border-lumia-ink/10 bg-white hover:border-lumia-gold/50 hover:bg-lumia-cream/20',
-          pendingSelection && selectedIndex === index ? 'opacity-50' : '',
-          disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
-        ]"
-        :disabled="disabled || (pendingSelection && selectedIndex !== index)"
-        @click="selectCandidate(index, candidate.id)"
-        @keydown.arrow-up.prevent="focusCandidate((index - 1 + candidates.candidates.length) % candidates.candidates.length)"
-        @keydown.arrow-down.prevent="focusCandidate((index + 1) % candidates.candidates.length)"
-        @keydown.arrow-left.prevent="focusCandidate((index - 1 + candidates.candidates.length) % candidates.candidates.length)"
-        @keydown.arrow-right.prevent="focusCandidate((index + 1) % candidates.candidates.length)"
-        @keydown.enter.prevent="selectCandidate(index, candidate.id)"
-      >
-        <!-- Thumbnail -->
-        <div class="relative h-32 w-full overflow-hidden bg-lumia-ink/5">
-          <img
-            v-if="candidate.thumbnailUrl"
-            :src="candidate.thumbnailUrl"
-            alt=""
-            class="h-full w-full object-cover transition-transform group-hover:scale-105"
-          />
-          <div v-else class="flex h-full w-full items-center justify-center bg-gradient-to-br from-lumia-beige to-lumia-cream">
-            <IconMusicOff class="h-8 w-8 text-lumia-ink/30" stroke-width="1.5" />
-          </div>
-
-          <!-- State Badge -->
-          <div class="absolute right-1.5 top-1.5">
+    <ul ref="list" class="mt-2.5 space-y-1.5" :aria-labelledby="headingId" @keydown="onKeydown">
+      <li v-for="candidate in candidates.candidates" :key="candidate.id">
+        <button
+          type="button"
+          class="group flex w-full items-center gap-3 rounded-xl border px-2.5 py-2 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-lumia-gold/70 disabled:cursor-not-allowed"
+          :class="
+            candidate.id === candidates.selectedId
+              ? 'border-lumia-gold bg-lumia-cream/60'
+              : 'border-lumia-ink/10 hover:border-lumia-gold/50 hover:bg-lumia-cream/40 disabled:hover:border-lumia-ink/10 disabled:hover:bg-transparent'
+          "
+          :disabled="locked"
+          :aria-pressed="candidate.id === candidates.selectedId"
+          :aria-busy="pending && candidate.id === candidates.selectedId"
+          @click="emit('select', candidate.id)"
+        >
+          <span class="relative flex h-10 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-lumia-beige/50">
+            <img v-if="candidate.thumbnailUrl" :src="candidate.thumbnailUrl" alt="" class="h-full w-full object-cover" loading="lazy" />
+            <IconPlayerPlayFilled v-else class="h-4 w-4 text-lumia-ink/45" aria-hidden="true" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="line-clamp-2 text-[13px] font-medium leading-snug text-lumia-ink">{{ candidate.title }}</span>
+            <span class="mt-0.5 block truncate text-[11px] text-lumia-ink/60">{{ meta(candidate) }}</span>
+          </span>
+          <span class="flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden="true">
             <span
-              v-if="pendingSelection && selectedIndex === index"
-              class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-lumia-gold/80 text-white"
-            >
-              <span class="h-2 w-2 animate-spin rounded-full border border-white border-t-transparent" />
-            </span>
-            <span v-else-if="selectedIndex === index" class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-lumia-gold text-white">
-              <IconCheck class="h-4 w-4" stroke-width="2" />
-            </span>
-          </div>
+              v-if="pending && candidate.id === candidates.selectedId"
+              class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-lumia-gold border-t-transparent"
+            />
+            <IconCheck
+              v-else-if="candidates.status === 'playing' && candidate.id === candidates.selectedId"
+              class="h-4 w-4 text-status-positive"
+              stroke-width="2"
+            />
+          </span>
+        </button>
+      </li>
+    </ul>
 
-          <!-- Type Badge -->
-          <div v-if="candidate.type !== 'unknown'" class="absolute left-1.5 bottom-1.5">
-            <span class="inline-flex gap-1 rounded-full bg-lumia-ink/80 px-2 py-1 text-[10px] font-medium uppercase text-white">
-              {{ typeBadge(candidate.type) }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Info -->
-        <div class="flex flex-col gap-1 p-2">
-          <p class="line-clamp-2 text-left text-[12px] font-medium text-lumia-ink">{{ candidate.title }}</p>
-          <p class="line-clamp-1 text-left text-[11px] text-lumia-ink/65">{{ candidate.artist || 'Unknown' }}</p>
-          <p class="text-left text-[10px] text-lumia-ink/50">{{ formatDuration(candidate.duration) }}</p>
-        </div>
-      </button>
-    </div>
-
-    <!-- Error Message -->
-    <div v-if="selectionError" class="rounded-lg bg-red-50/60 px-3 py-2 text-[12px] text-red-700">
-      {{ selectionError }}
-    </div>
+    <p v-if="statusLine" class="mt-2 text-[12px] leading-snug" :class="statusClass" role="status" aria-live="polite">
+      {{ statusLine }}
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { IconCheck, IconMusicOff } from '@tabler/icons-vue'
+import { IconBrandYoutube, IconCheck, IconPlayerPlayFilled } from '@tabler/icons-vue'
 import type { LumiMusicCandidatesView } from '~/features/lumi/composables/useLumi'
 
-interface Props {
-  candidates: LumiMusicCandidatesView
-  disabled?: boolean
+/**
+ * Vídeos de una búsqueda de música dudosa. La tarjeta solo envía la elección: el Server la valida,
+ * la ejecuta en el equipo y la respuesta trae el resultado que comprobó el agente.
+ */
+const props = defineProps<{ candidates: LumiMusicCandidatesView }>()
+const emit = defineEmits<{ select: [candidateId: string] }>()
+
+const headingId = useId()
+const list = ref<HTMLUListElement | null>(null)
+
+const TYPE_LABEL: Record<LumiMusicCandidatesView['candidates'][number]['type'], string | null> = {
+  official: 'Oficial',
+  live: 'En vivo',
+  cover: 'Cover',
+  remix: 'Remix',
+  song: null,
+  unknown: null,
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  disabled: false,
+const pending = computed(() => props.candidates.status === 'pending')
+const locked = computed(() => pending.value || props.candidates.status === 'expired')
+
+const heading = computed(() => {
+  const count = props.candidates.candidates.length
+  return count === 1
+    ? `Encontré un vídeo para «${props.candidates.query}». ¿Lo pongo?`
+    : `Encontré ${count} vídeos para «${props.candidates.query}». Elige cuál poner:`
 })
 
-const emit = defineEmits<{
-  select: [index: number, candidateId: string]
-}>()
+const statusLine = computed(() => {
+  if (pending.value) return 'Poniendo el vídeo en tu equipo…'
+  return props.candidates.statusMessage
+})
 
-const selectedIndex = ref(props.candidates.selectedIndex)
-const pendingSelection = ref(props.candidates.pendingSelection)
-const selectionError = ref(props.candidates.selectionError)
-
-const selectedCandidate = ref<number | null>(null)
+const statusClass = computed(() => {
+  switch (props.candidates.status) {
+    case 'playing':
+      return 'text-status-positive'
+    case 'unverified':
+    case 'busy':
+      return 'text-status-warning'
+    case 'failed':
+    case 'offline':
+    case 'expired':
+      return 'text-status-danger'
+    default:
+      return 'text-lumia-ink/60'
+  }
+})
 
 function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-
-  if (hours > 0) return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-  return `${minutes}:${String(secs).padStart(2, '0')}`
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
 }
 
-function typeBadge(type: string): string {
-  const badges: Record<string, string> = {
-    song: '♪ Song',
-    live: '🔴 Live',
-    cover: '🎭 Cover',
-    remix: '🔄 Remix',
-    official: '✓ Official',
-  }
-  return badges[type] || ''
+function meta(candidate: LumiMusicCandidatesView['candidates'][number]): string {
+  return [candidate.artist, candidate.duration > 0 ? formatDuration(candidate.duration) : null, TYPE_LABEL[candidate.type]]
+    .filter(Boolean)
+    .join(' · ')
 }
 
-function selectCandidate(index: number, candidateId: string) {
-  if (props.disabled || pendingSelection.value) return
-
-  selectedIndex.value = index
-  pendingSelection.value = true
-  emit('select', index, candidateId)
+/** Flechas arriba/abajo mueven el foco dentro de la lista; Intro y Espacio los maneja el botón. */
+function onKeydown(event: KeyboardEvent) {
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+  const buttons = Array.from(list.value?.querySelectorAll<HTMLButtonElement>('button') ?? [])
+  const index = buttons.indexOf(document.activeElement as HTMLButtonElement)
+  if (index === -1 || buttons.length === 0) return
+  event.preventDefault()
+  const next = event.key === 'ArrowDown' ? (index + 1) % buttons.length : (index - 1 + buttons.length) % buttons.length
+  buttons[next]?.focus()
 }
-
-function focusCandidate(index: number) {
-  selectedCandidate.value = index
-}
-
-watch(
-  () => props.candidates.selectedIndex,
-  (newIndex) => {
-    selectedIndex.value = newIndex
-  },
-)
-
-watch(
-  () => props.candidates.pendingSelection,
-  (newPending) => {
-    pendingSelection.value = newPending
-  },
-)
-
-watch(
-  () => props.candidates.selectionError,
-  (newError) => {
-    selectionError.value = newError
-  },
-)
 </script>
