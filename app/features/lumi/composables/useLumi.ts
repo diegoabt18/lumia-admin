@@ -3,31 +3,66 @@ import type {
   LumiConversationDetail,
   LumiConversationSummary,
   LumiMessage,
+  LumiMusicPlaybackEvent,
+  LumiMusicPlaybackResult,
+  LumiMusicPlaybackState,
   LumiReference,
   LumiStreamEvent,
 } from '#shared/schemas/lumi'
-import { LUMI_MESSAGE_MAX, LUMI_RESPONSE_LENGTHS, lumiStreamEventSchema } from '#shared/schemas/lumi'
+import {
+  LUMI_MESSAGE_MAX,
+  LUMI_RESPONSE_LENGTHS,
+  lumiMusicPlaybackEventSchema,
+  lumiMusicPlaybackResultSchema,
+  lumiStreamEventSchema,
+} from '#shared/schemas/lumi'
 import { lumiContextForPath } from '~/features/lumi/utils/context'
 import { parseSseBlock, splitSseBuffer } from '~/features/lumi/utils/sse'
 
 /**
  * Estado de la elección: `pending` mientras el equipo responde; `playing` solo cuando el agente
- * comprobó que el navegador quedó en el vídeo. Los demás vienen tal cual del Server.
+ * comprobó que el vídeo avanza; `partial` si suena pero no se pudo minimizar el navegador. Los
+ * demás vienen tal cual del Server.
  */
 export type LumiMusicPlaybackStatus =
   | 'idle'
   | 'pending'
   | 'playing'
+  | 'partial'
   | 'unverified'
   | 'failed'
   | 'offline'
   | 'expired'
   | 'busy'
 
+const MUSIC_ERROR_STATES: readonly LumiMusicPlaybackState[] = [
+  'BROWSER_UNAVAILABLE',
+  'TAB_UNAVAILABLE',
+  'NAVIGATION_FAILED',
+  'VIDEO_UNAVAILABLE',
+  'PLAYBACK_BLOCKED',
+  'PLAYBACK_FAILED',
+  'MINIMIZE_FAILED',
+  'EXECUTION_TIMEOUT',
+]
+
+/** Progreso de la reproducción en el equipo, tal como lo informa el Server (estados verificados). */
+export interface LumiMusicPlaybackView {
+  /** Último estado recibido (puede ser de error). */
+  state: LumiMusicPlaybackState | null
+  /** Último estado alcanzado con éxito: hasta dónde llegó antes de un error. */
+  reached: LumiMusicPlaybackState | null
+  /** El agente reutilizó una pestaña o abrió una nueva. */
+  tab: 'reused' | 'created' | null
+}
+
 /** Vídeos de una búsqueda dudosa para que el usuario elija. Solo en pantalla. */
 export interface LumiMusicCandidatesView {
   queryId: string
   query: string
+  /** Conversación en la que se mostró la tarjeta: el Server comprueba que sea la misma. */
+  conversationId: string
+  deviceId: string | null
   candidates: Array<{
     id: string
     title: string
@@ -40,6 +75,7 @@ export interface LumiMusicCandidatesView {
   selectedId: string | null
   status: LumiMusicPlaybackStatus
   statusMessage: string | null
+  playback: LumiMusicPlaybackView | null
 }
 
 /** Mensaje mostrado en el panel. Los estados transitorios solo existen en el navegador. */
@@ -181,7 +217,23 @@ export function useLumi() {
     signal: AbortSignal,
     onEvent: (event: LumiStreamEvent) => void,
   ): Promise<void> {
-    const response = await fetch('/api/admin/lumi/chat/stream', {
+    await postSse('/api/admin/lumi/chat/stream', body, signal, (name, json) => {
+      const event = lumiStreamEventSchema.safeParse({
+        type: name,
+        ...(typeof json === 'object' && json !== null ? json : {}),
+      })
+      if (event.success) onEvent(event.data)
+    })
+  }
+
+  /** POST que responde en SSE: entrega cada evento (`event:` + JSON de `data:`) en orden. */
+  async function postSse(
+    url: string,
+    body: unknown,
+    signal: AbortSignal | undefined,
+    onMessage: (name: string, json: unknown) => void,
+  ): Promise<void> {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
       credentials: 'same-origin',
@@ -223,11 +275,7 @@ export function useLumi() {
           } catch {
             continue
           }
-          const event = lumiStreamEventSchema.safeParse({
-            type: parsed.event,
-            ...(typeof json === 'object' && json !== null ? json : {}),
-          })
-          if (event.success) onEvent(event.data)
+          onMessage(parsed.event, json)
         }
       }
     } finally {
@@ -291,9 +339,16 @@ export function useLumi() {
             const { type: _type, ...confirmation } = event
             replaceMessage(pendingKey, { confirmation })
           } else if (event.type === 'music_candidates') {
-            const { type: _type, conversationId: _convId, ...candidates } = event
+            const { type: _type, deviceId, ...candidates } = event
             replaceMessage(pendingKey, {
-              musicCandidates: { ...candidates, selectedId: null, status: 'idle', statusMessage: null },
+              musicCandidates: {
+                ...candidates,
+                deviceId: deviceId ?? null,
+                selectedId: null,
+                status: 'idle',
+                statusMessage: null,
+                playback: null,
+              },
             })
           } else if (event.type === 'references') {
             // Llega justo antes de `done`; se muestran cuando el mensaje queda terminado.
@@ -346,9 +401,22 @@ export function useLumi() {
     if (current) replaceMessage(messageKey, { musicCandidates: { ...current, ...patch } })
   }
 
+  /** Avanza el progreso de la tarjeta con un estado verificado. */
+  function applyPlaybackState(messageKey: string, event: LumiMusicPlaybackEvent) {
+    const current = messages.value.find((m) => m.key === messageKey)?.musicCandidates
+    if (!current) return
+    const previous = current.playback ?? { state: null, reached: null, tab: null }
+    const failed = MUSIC_ERROR_STATES.includes(event.state)
+    const tab = event.stage === 'tab.reused' ? 'reused' : event.stage === 'tab.created' ? 'created' : previous.tab
+    patchMusicCandidates(messageKey, {
+      playback: { state: event.state, reached: failed ? previous.reached : event.state, tab },
+    })
+  }
+
   /**
-   * Pone el vídeo elegido en la tarjeta. Una sola elección a la vez por tarjeta; la respuesta llega
-   * cuando el equipo terminó, así que la tarjeta refleja el resultado real sin consultar de nuevo.
+   * Pone el vídeo elegido en la tarjeta. Una sola elección a la vez por tarjeta. El progreso llega por
+   * SSE en la respuesta de esta misma petición y solo se aplica si sus identificadores (búsqueda,
+   * candidato, mensaje y conversación) son los de esta tarjeta: un evento de otra no la cambia.
    */
   async function selectMusicCandidate(messageKey: string, candidateId: string) {
     const view = messages.value.find((m) => m.key === messageKey)?.musicCandidates
@@ -360,16 +428,48 @@ export function useLumi() {
       })
       return
     }
-    patchMusicCandidates(messageKey, { selectedId: candidateId, status: 'pending', statusMessage: null })
+    patchMusicCandidates(messageKey, {
+      selectedId: candidateId,
+      status: 'pending',
+      statusMessage: null,
+      playback: { state: null, reached: null, tab: null },
+    })
+    const ours = (ids: { queryId: string; candidateId: string; messageId: string | null; conversationId: string | null }) =>
+      ids.queryId === view.queryId &&
+      ids.candidateId === candidateId &&
+      ids.messageId === messageKey &&
+      (ids.conversationId === null || ids.conversationId === view.conversationId)
+
+    let final: LumiMusicPlaybackResult | null = null
     try {
-      const response = await request<{ status: Exclude<LumiMusicPlaybackStatus, 'idle' | 'pending'>; message: string }>(
-        `/api/admin/lumi/music/selection/${view.queryId}`,
-        { method: 'POST', body: { candidateId } },
+      await postSse(
+        `/api/admin/lumi/music/selection/${view.queryId}/stream`,
+        { candidateId, conversationId: view.conversationId, messageId: messageKey },
+        undefined,
+        (name, json) => {
+          if (name === 'music_playback') {
+            const event = lumiMusicPlaybackEventSchema.safeParse(json)
+            if (event.success && ours(event.data)) applyPlaybackState(messageKey, event.data)
+          } else if (name === 'music_playback_result') {
+            const result = lumiMusicPlaybackResultSchema.safeParse(json)
+            if (result.success && ours(result.data)) final = result.data
+          }
+        },
       )
-      patchMusicCandidates(messageKey, { status: response.status, statusMessage: response.message })
     } catch (error) {
       patchMusicCandidates(messageKey, { status: 'failed', statusMessage: errorText(error) })
+      return
     }
+    const result = final as LumiMusicPlaybackResult | null
+    if (!result) {
+      patchMusicCandidates(messageKey, {
+        status: 'failed',
+        statusMessage: 'Se cortó la conexión antes de saber el resultado. Revisa el equipo antes de volver a intentarlo.',
+      })
+      return
+    }
+    if (result.state) applyPlaybackState(messageKey, { ...result, state: result.state })
+    patchMusicCandidates(messageKey, { status: result.status, statusMessage: result.message })
   }
 
   /** Detiene la respuesta en curso. El Server cancela la generación y no guarda el turno. */

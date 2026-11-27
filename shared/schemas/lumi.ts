@@ -246,6 +246,8 @@ export const lumiStreamEventSchema = z.discriminatedUnion('type', [
     conversationId: z.string().uuid(),
     queryId: z.string().uuid(),
     query: z.string(),
+    /** Equipo en el que se buscó y se pondrá el vídeo (Server reciente). */
+    deviceId: z.string().max(64).optional(),
     candidates: z.array(z.object({
       id: z.string(), // YouTube video ID
       title: z.string(),
@@ -261,3 +263,67 @@ export const lumiStreamEventSchema = z.discriminatedUnion('type', [
 ])
 
 export type LumiStreamEvent = z.infer<typeof lumiStreamEventSchema>
+
+/**
+ * Reproducción de música en el equipo (Server: máquina de estados de `browser.media.play`). Solo
+ * avanza hacia delante; COMPLETED exige reproducción confirmada y ventana minimizada.
+ */
+export const LUMI_MUSIC_PLAYBACK_STATES = [
+  'RECEIVED',
+  'VALIDATED',
+  'BROWSER_READY',
+  'TAB_READY',
+  'NAVIGATING',
+  'NAVIGATION_COMPLETED',
+  'PLAYING',
+  'MINIMIZING',
+  'COMPLETED',
+  'BROWSER_UNAVAILABLE',
+  'TAB_UNAVAILABLE',
+  'NAVIGATION_FAILED',
+  'VIDEO_UNAVAILABLE',
+  'PLAYBACK_BLOCKED',
+  'PLAYBACK_FAILED',
+  'MINIMIZE_FAILED',
+  'EXECUTION_TIMEOUT',
+] as const
+export type LumiMusicPlaybackState = (typeof LUMI_MUSIC_PLAYBACK_STATES)[number]
+
+/** Identificadores de la operación musical: cada evento dice a qué tarjeta pertenece. */
+const lumiMusicPlaybackIdsSchema = z.object({
+  queryId: z.string().uuid(),
+  candidateId: z.string().regex(/^[0-9a-f]{16}$/),
+  conversationId: z.string().max(64).nullable(),
+  messageId: z.string().max(64).nullable(),
+  deviceId: z.string().max(64).nullable(),
+})
+
+export const lumiMusicPlaybackEventSchema = lumiMusicPlaybackIdsSchema.extend({
+  state: z.enum(LUMI_MUSIC_PLAYBACK_STATES),
+  stage: z.string().max(40).optional(),
+})
+export type LumiMusicPlaybackEvent = z.infer<typeof lumiMusicPlaybackEventSchema>
+
+export const LUMI_MUSIC_SELECTION_STATUSES = [
+  'playing',
+  'partial',
+  'unverified',
+  'failed',
+  'offline',
+  'expired',
+  'busy',
+] as const
+
+export const lumiMusicPlaybackResultSchema = lumiMusicPlaybackIdsSchema.extend({
+  status: z.enum(LUMI_MUSIC_SELECTION_STATUSES),
+  state: z.enum(LUMI_MUSIC_PLAYBACK_STATES).nullable(),
+  message: z.string().max(400),
+  replayed: z.boolean(),
+})
+export type LumiMusicPlaybackResult = z.infer<typeof lumiMusicPlaybackResultSchema>
+
+export const lumiMusicSelectionInputSchema = z.object({
+  candidateId: z.string().regex(/^[0-9a-f]{16}$/),
+  conversationId: z.string().uuid().optional(),
+  messageId: z.string().min(1).max(64).regex(/^[A-Za-z0-9_:-]+$/).optional(),
+})
