@@ -327,3 +327,305 @@ export const lumiMusicSelectionInputSchema = z.object({
   conversationId: z.string().uuid().optional(),
   messageId: z.string().min(1).max(64).regex(/^[A-Za-z0-9_:-]+$/).optional(),
 })
+
+/**
+ * Canal de sesión de Lumi (`GET /api/lumi/session/stream`, Lumi 2.0 Fase 1.3): avisos de lo que pasa
+ * en los otros dispositivos del usuario (LumiChat, otras pestañas). Sin texto de mensajes: solo ids y
+ * estados. Protocolo en server/docs/lumi-2.0/SESSION_PROTOCOL.md.
+ */
+export const LUMI_PRESENCE_STATES = ['idle', 'thinking', 'working', 'waiting_approval', 'error'] as const
+export type LumiPresenceState = (typeof LUMI_PRESENCE_STATES)[number]
+
+export const lumiPresenceSchema = z.object({
+  state: z.enum(LUMI_PRESENCE_STATES),
+  conversationId: z.string().uuid().nullable(),
+  at: z.string(),
+})
+export type LumiPresence = z.infer<typeof lumiPresenceSchema>
+
+export const lumiSessionReadySchema = z.object({ presence: lumiPresenceSchema })
+export const lumiSessionConversationEventSchema = z.object({
+  conversationId: z.string().uuid(),
+  at: z.string(),
+})
+
+/** Teléfonos con LumiChat del usuario (Server: `GET/DELETE /api/lumichat/devices`). */
+export const lumiMobileDeviceIdSchema = z.string().regex(/^[a-f0-9]{24}$/)
+export const lumiMobileDeviceSchema = z.object({
+  id: lumiMobileDeviceIdSchema,
+  platform: z.enum(['android', 'ios']),
+  deviceLabel: z.string().nullable(),
+  appVersion: z.string().nullable(),
+  active: z.boolean(),
+  current: z.boolean(),
+  receivesPush: z.boolean(),
+  createdAt: z.string(),
+  lastSeenAt: z.string(),
+})
+export const lumiMobileDeviceListSchema = z.object({ items: z.array(lumiMobileDeviceSchema) })
+export type LumiMobileDevice = z.infer<typeof lumiMobileDeviceSchema>
+
+/**
+ * Preferencias de avisos de Lumi (Server: `GET/PUT /api/lumi/notifications/preferences`, Fase 3.1).
+ * Deciden qué llega al teléfono; el centro de notificaciones de Lumia Admin los recibe siempre.
+ */
+const LUMI_QUIET_TIME = /^([01]\d|2[0-3]):([0-5]\d)$/
+export const lumiNotificationPreferencesSchema = z
+  .object({
+    push: z.object({ orders: z.boolean(), routines: z.boolean(), initiatives: z.boolean() }).strict(),
+    quietHours: z
+      .object({
+        enabled: z.boolean(),
+        start: z.string().regex(LUMI_QUIET_TIME, 'Usa el formato HH:MM'),
+        end: z.string().regex(LUMI_QUIET_TIME, 'Usa el formato HH:MM'),
+      })
+      .strict()
+      .refine((q) => q.start !== q.end, { message: 'El inicio y el fin no pueden coincidir', path: ['end'] }),
+  })
+  .strict()
+export type LumiNotificationPreferences = z.infer<typeof lumiNotificationPreferencesSchema>
+
+/**
+ * Aprobaciones de Lumi (Server: `GET /api/lumi/approvals`, `POST /api/lumi/approvals/:id/resolve`,
+ * Lumi 2.0 Fase 4.1). Un solo uso: aprobar ejecuta exactamente lo que dice `summary` (ligado a
+ * `paramsHash`); `expired` es una pendiente que ya caducó. `create_automation` (Fase 4.3): una
+ * automatización que Lumi propone; no existe hasta aprobarla. `goal_plan` (Fase 6.1): pasos que la IA
+ * propone para un objetivo; no se añaden hasta aprobarlos.
+ */
+export const lumiApprovalIdSchema = z.string().regex(/^[a-f0-9]{24}$/)
+export const lumiApprovalSchema = z.object({
+  id: lumiApprovalIdSchema,
+  kind: z.enum(['delete_routine', 'desktop_action', 'create_automation', 'goal_plan']),
+  summary: z.string(),
+  paramsHash: z.string().regex(/^[a-f0-9]{64}$/),
+  status: z.enum(['pending', 'approved', 'rejected', 'superseded', 'expired']),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+  resolvedAt: z.string().nullable(),
+  via: z.enum(['chat', 'button', 'api']).nullable(),
+  outcome: z
+    .object({ status: z.enum(['done', 'error']), text: z.string(), executionId: z.string().optional() })
+    .nullable(),
+  /** Conversación del chat en la que se pidió (null en las propuestas de Lumi). */
+  conversationId: z.string().nullable(),
+})
+export const lumiApprovalListSchema = z.object({ items: z.array(lumiApprovalSchema) })
+export type LumiApproval = z.infer<typeof lumiApprovalSchema>
+
+export const lumiApprovalListQuerySchema = z.object({ status: z.enum(['pending', 'all']).default('pending') }).strict()
+
+export const lumiApprovalResolveSchema = z
+  .object({
+    decision: z.enum(['approve', 'reject']),
+    remember: z.boolean().default(false),
+    paramsHash: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict()
+export type LumiApprovalResolveInput = z.infer<typeof lumiApprovalResolveSchema>
+
+export const lumiApprovalResolveResultSchema = z.object({
+  status: z.enum(['approved', 'rejected']),
+  text: z.string(),
+})
+export type LumiApprovalResolveResult = z.infer<typeof lumiApprovalResolveResultSchema>
+
+/**
+ * Estado de las dependencias de Lumi (Server: `GET /api/lumi/health`, Fase 4.2), según la última
+ * ronda del monitor (cada minuto). `unknown`: aún no comprobado o sin dato.
+ */
+export const lumiHealthComponentSchema = z.object({
+  component: z.enum(['redis', 'assistant', 'ollama']),
+  status: z.enum(['unknown', 'ok', 'down']),
+  since: z.string().nullable(),
+  lastCheckedAt: z.string().nullable(),
+})
+export const lumiHealthSchema = z.object({ components: z.array(lumiHealthComponentSchema) })
+export type LumiHealthComponent = z.infer<typeof lumiHealthComponentSchema>
+
+/**
+ * Memoria de Lumi (Server: `/api/lumi/memory`, Fase 5.1). Corregir crea una versión nueva y deja la
+ * anterior como `superseded`; olvidar la marca `forgotten`. Todo recuerdo lleva su procedencia.
+ */
+export const LUMI_MEMORY_KINDS = ['preference', 'fact', 'commitment', 'decision'] as const
+export const lumiMemoryIdSchema = z.string().regex(/^[a-f0-9]{24}$/)
+export const lumiMemorySchema = z.object({
+  id: lumiMemoryIdSchema,
+  kind: z.enum(LUMI_MEMORY_KINDS),
+  text: z.string(),
+  status: z.enum(['active', 'superseded', 'forgotten']),
+  version: z.number().int().positive(),
+  previousId: lumiMemoryIdSchema.nullable(),
+  source: z.object({
+    via: z.enum(['chat', 'panel']),
+    by: z.string(),
+    phrase: z.string().nullable(),
+    conversationId: z.string().nullable(),
+  }),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export const lumiMemoryListSchema = z.object({ items: z.array(lumiMemorySchema) })
+export type LumiMemory = z.infer<typeof lumiMemorySchema>
+
+export const lumiMemoryListQuerySchema = z.object({ status: z.enum(['active', 'all']).default('active') }).strict()
+const lumiMemoryText = z.string().trim().min(3, 'Escribe al menos 3 caracteres').max(300, 'Máximo 300 caracteres')
+export const lumiMemoryCreateSchema = z.object({ kind: z.enum(LUMI_MEMORY_KINDS), text: lumiMemoryText }).strict()
+export const lumiMemoryCorrectSchema = z.object({ text: lumiMemoryText, kind: z.enum(LUMI_MEMORY_KINDS).optional() }).strict()
+
+/**
+ * Objetivos de Lumi (Server: `/api/lumi/goals`, Fase 6.1). Pasos con recordatorio opcional (una tarea
+ * normal), historial de seguimiento y evaluación al vencer. Los pasos que propone la IA son una
+ * aprobación `goal_plan` que se resuelve con `/api/admin/lumi/approvals/:id/resolve`.
+ */
+export const LUMI_GOAL_STATUSES = ['active', 'achieved', 'abandoned'] as const
+export const lumiGoalIdSchema = z.string().regex(/^[a-f0-9]{24}$/)
+export const lumiGoalStepIdSchema = z.string().regex(/^[a-f0-9]{8}$/)
+export const lumiGoalSchema = z.object({
+  id: lumiGoalIdSchema,
+  title: z.string(),
+  description: z.string().nullable(),
+  dueDate: z.string().nullable(),
+  status: z.enum(LUMI_GOAL_STATUSES),
+  progress: z.object({ done: z.number().int(), total: z.number().int(), percent: z.number().int() }),
+  steps: z.array(
+    z.object({
+      id: lumiGoalStepIdSchema,
+      title: z.string(),
+      done: z.boolean(),
+      doneAt: z.string().nullable(),
+      taskId: z.string().nullable(),
+      remindAt: z.string().nullable(),
+      origin: z.enum(['admin', 'lumi']),
+    }),
+  ),
+  events: z.array(z.object({ at: z.string(), type: z.string(), text: z.string() })),
+  evaluation: z
+    .object({
+      at: z.string(),
+      dueDate: z.string(),
+      done: z.number().int(),
+      total: z.number().int(),
+      result: z.enum(['achieved', 'missed']),
+    })
+    .nullable(),
+  lastProgressAt: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export const lumiGoalListSchema = z.object({ items: z.array(lumiGoalSchema) })
+export type LumiGoal = z.infer<typeof lumiGoalSchema>
+export type LumiGoalStep = LumiGoal['steps'][number]
+
+export const lumiGoalListQuerySchema = z.object({ status: z.enum(['active', 'all']).default('active') }).strict()
+const lumiGoalTitle = z.string().trim().min(3, 'Escribe al menos 3 caracteres').max(120, 'Máximo 120 caracteres')
+const lumiGoalDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida')
+export const lumiGoalCreateSchema = z
+  .object({
+    title: lumiGoalTitle,
+    description: z.string().trim().max(1000, 'Máximo 1000 caracteres').optional(),
+    dueDate: lumiGoalDate.optional(),
+  })
+  .strict()
+export const lumiGoalUpdateSchema = z
+  .object({
+    title: lumiGoalTitle.optional(),
+    description: z.string().trim().max(1000, 'Máximo 1000 caracteres').nullable().optional(),
+    dueDate: lumiGoalDate.nullable().optional(),
+  })
+  .strict()
+export const lumiGoalStatusSchema = z.object({ status: z.enum(LUMI_GOAL_STATUSES) }).strict()
+export const lumiGoalStepCreateSchema = z
+  .object({ title: lumiGoalTitle, remindAt: z.string().datetime({ offset: true }).optional() })
+  .strict()
+export const lumiGoalStepUpdateSchema = z.object({ done: z.boolean().optional(), title: lumiGoalTitle.optional() }).strict()
+export const lumiGoalPlanSchema = z.object({
+  approvalId: lumiApprovalIdSchema,
+  summary: z.string(),
+  paramsHash: z.string().regex(/^[a-f0-9]{64}$/),
+  expiresAt: z.string(),
+})
+export type LumiGoalPlan = z.infer<typeof lumiGoalPlanSchema>
+
+/**
+ * Centro de actividad de Lumi (Server: `GET /api/lumi/activity`, Lumi 2.0 Fase 6.2): foto de solo
+ * lectura de lo que pide atención. Una sección en `unavailable` no se pudo consultar (su valor llega
+ * `null`); `desktop` también es `null` sin `desktop.devices.read` o con el agente apagado.
+ */
+export const LUMI_ACTIVITY_SECTIONS = ['health', 'approvals', 'tasks', 'goals', 'initiatives', 'errors', 'phones', 'desktop'] as const
+export type LumiActivitySection = (typeof LUMI_ACTIVITY_SECTIONS)[number]
+
+export const lumiActivityErrorSchema = z.object({
+  source: z.enum(['automation', 'desktop', 'health']),
+  key: z.string(),
+  title: z.string(),
+  message: z.string(),
+  at: z.string(),
+  severity: z.enum(['retrying', 'final']),
+  taskId: z.string().nullable(),
+  deviceId: z.string().nullable(),
+})
+export type LumiActivityError = z.infer<typeof lumiActivityErrorSchema>
+
+export const lumiActivitySchema = z.object({
+  generatedAt: z.string(),
+  unavailable: z.array(z.enum(LUMI_ACTIVITY_SECTIONS)),
+  health: z.array(lumiHealthComponentSchema).nullable(),
+  approvals: z
+    .object({
+      pending: z.number().int().nonnegative(),
+      items: z.array(lumiApprovalSchema.pick({ id: true, kind: true, summary: true, paramsHash: true, createdAt: true, expiresAt: true })),
+    })
+    .nullable(),
+  tasks: z
+    .object({
+      active: z.number().int().nonnegative(),
+      paused: z.number().int().nonnegative(),
+      upcoming: z.array(z.object({ id: z.string(), title: z.string(), kind: z.string(), nextRunAt: z.string() })),
+      pausedItems: z.array(z.object({ id: z.string(), title: z.string(), kind: z.string() })),
+    })
+    .nullable(),
+  goals: z
+    .object({
+      active: z.number().int().nonnegative(),
+      overdue: z.number().int().nonnegative(),
+      stalled: z.number().int().nonnegative(),
+      items: z.array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          dueDate: z.string().nullable(),
+          progress: z.object({ done: z.number(), total: z.number(), percent: z.number() }),
+          overdue: z.boolean(),
+          stalled: z.boolean(),
+          nextStep: z.string().nullable(),
+        }),
+      ),
+    })
+    .nullable(),
+  initiatives: z
+    .object({
+      open: z.number().int().nonnegative(),
+      items: z.array(
+        z.object({ id: z.string(), kind: z.string(), title: z.string(), priority: z.number(), state: z.string(), lastSeenAt: z.string() }),
+      ),
+    })
+    .nullable(),
+  errors: z.array(lumiActivityErrorSchema),
+  phones: z
+    .array(
+      z.object({
+        id: z.string(),
+        platform: z.string(),
+        deviceLabel: z.string().nullable(),
+        appVersion: z.string().nullable(),
+        current: z.boolean(),
+        receivesPush: z.boolean(),
+        lastSeenAt: z.string(),
+      }),
+    )
+    .nullable(),
+  desktop: z
+    .array(z.object({ id: z.string(), name: z.string(), os: z.string(), online: z.boolean(), lastSeenAt: z.string().nullable() }))
+    .nullable(),
+})
+export type LumiActivity = z.infer<typeof lumiActivitySchema>

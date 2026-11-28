@@ -6,6 +6,7 @@ import type {
   LumiMusicPlaybackEvent,
   LumiMusicPlaybackResult,
   LumiMusicPlaybackState,
+  LumiPresence,
   LumiReference,
   LumiStreamEvent,
 } from '#shared/schemas/lumi'
@@ -138,6 +139,16 @@ const INTERRUPTED_MESSAGE = 'La respuesta se interrumpió. Inténtalo de nuevo.'
  * El turno solo se guarda en el Server si llega `done`. Al detener, la respuesta parcial se
  * conserva en pantalla, pero no entra en el historial.
  */
+function toViewMessage(m: LumiMessage): LumiViewMessage {
+  return {
+    key: `h-${m.id}`,
+    role: m.role,
+    content: m.content,
+    state: 'done',
+    ...(m.references.length ? { references: m.references } : {}),
+  }
+}
+
 export function useLumi() {
   const open = useState<boolean>('lumi-open', () => false)
   const expanded = useState<boolean>('lumi-expanded', () => false)
@@ -165,6 +176,8 @@ export function useLumi() {
   const conversations = useState<LumiConversationSummary[]>('lumi-conversations', () => [])
   const historyLoading = useState<boolean>('lumi-history-loading', () => false)
   const historyError = useState<string | null>('lumi-history-error', () => null)
+  /** Lo que Lumi está haciendo para este usuario en cualquier dispositivo (canal de sesión). */
+  const remotePresence = useState<LumiPresence | null>('lumi-remote-presence', () => null)
 
   const { request } = useAdminApi()
   const auth = useAuth()
@@ -511,19 +524,43 @@ export function useLumi() {
     try {
       const detail = await request<LumiConversationDetail>(`/api/admin/lumi/conversations/${id}`)
       if (gen !== generation.value) return
-      messages.value = detail.messages.map((m: LumiMessage) => ({
-        key: `h-${m.id}`,
-        role: m.role,
-        content: m.content,
-        state: 'done',
-        ...(m.references.length ? { references: m.references } : {}),
-      }))
+      messages.value = detail.messages.map(toViewMessage)
       conversationId.value = detail.id
       connection.value = 'idle'
       view.value = 'chat'
     } catch (error) {
       toast.error('No se pudo abrir la conversación', errorText(error))
     }
+  }
+
+  /**
+   * Otro dispositivo (LumiChat u otra pestaña) guardó un turno en la conversación abierta. Solo se
+   * recarga si el Server tiene más respuestas que las que se ven: los turnos de esta pestaña ya están
+   * en pantalla con sus tarjetas (confirmaciones, música), que no se guardan y se perderían.
+   */
+  async function syncConversation(id: string) {
+    if (conversationId.value !== id || sending.value) return
+    const gen = generation.value
+    try {
+      const detail = await request<LumiConversationDetail>(`/api/admin/lumi/conversations/${id}`)
+      if (gen !== generation.value || sending.value || conversationId.value !== id) return
+      const saved = detail.messages.filter((m) => m.role === 'assistant').length
+      const shown = messages.value.filter((m) => m.role === 'assistant' && m.state === 'done').length
+      if (saved > shown) messages.value = detail.messages.map(toViewMessage)
+    } catch {
+      // Sin cambios en pantalla: la conversación se recupera al volver a abrirla.
+    }
+  }
+
+  /**
+   * Se borró una conversación en otro dispositivo. Devuelve true si era la abierta (y se cerró).
+   * Con un turno en curso no se toca la pantalla: el Server rechazará guardarlo y lo mostrará.
+   */
+  function forgetConversation(id: string): boolean {
+    conversations.value = conversations.value.filter((c) => c.id !== id)
+    if (conversationId.value !== id || sending.value) return false
+    newChat()
+    return true
   }
 
   async function deleteConversation(id: string) {
@@ -549,6 +586,7 @@ export function useLumi() {
     newChat()
     conversations.value = []
     historyError.value = null
+    remotePresence.value = null
     draft.value = ''
     reasoningMode.value = 'auto'
     webMode.value = 'auto'
@@ -596,6 +634,9 @@ export function useLumi() {
     loadHistory,
     openConversation,
     deleteConversation,
+    remotePresence,
+    syncConversation,
+    forgetConversation,
     reset,
     toggleOpen,
     close,

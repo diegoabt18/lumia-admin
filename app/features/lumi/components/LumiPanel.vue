@@ -123,7 +123,18 @@ const statusLabel = computed(() => {
   if (lumi.view.value === 'review') return 'Tareas pendientes por revisar'
   if (lumi.sending.value) return 'Lumi está respondiendo…'
   if (lumi.connection.value === 'error') return 'Sin conexión con Lumi'
-  return 'Asistente de administración'
+  return remoteLabel.value ?? 'Asistente de administración'
+})
+
+/** Lo que Lumi hace desde otro dispositivo (LumiChat u otra pestaña); null si está libre. */
+const remoteLabel = computed(() => {
+  const presence = lumi.remotePresence.value
+  if (!presence || presence.state === 'idle' || presence.state === 'error') return null
+  const here = presence.conversationId !== null && presence.conversationId === lumi.conversationId.value
+  const where = here ? 'en esta conversación' : 'en otro dispositivo'
+  if (presence.state === 'thinking') return `Lumi está respondiendo ${where}…`
+  if (presence.state === 'working') return `Lumi está consultando datos ${where}…`
+  return here ? 'Lumi espera tu confirmación en esta conversación' : 'Lumi espera una confirmación en otro dispositivo'
 })
 
 /** Ancho de la ventana: la posición junto al icono solo aplica en escritorio (>= 640 px). */

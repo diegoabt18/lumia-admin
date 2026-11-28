@@ -6,6 +6,10 @@
       description="Historial de avisos del motor de automatización e iniciativas. La campana de la barra superior muestra las más recientes."
     />
 
+    <LumiHealthCard class="mb-6" />
+
+    <NotificationPreferencesCard class="mb-6" />
+
     <div v-if="loading && !items.length" class="space-y-3">
       <BaseSkeleton v-for="n in 4" :key="n" class="h-20 w-full" />
     </div>

@@ -73,8 +73,6 @@ export const PERMISSIONS = {
   LUMI_CAPABILITIES_ENABLE: 'lumi.capabilities.enable',
   LUMI_LEARNING_READ: 'lumi.learning.read',
   LUMI_LEARNING_MANAGE: 'lumi.learning.manage',
-  MUSIC_READ: 'music.read',
-  MUSIC_CONTROL: 'music.control',
   STORE_SETTINGS_READ: 'store.settings.read',
   STORE_SETTINGS_MANAGE: 'store.settings.manage',
   STORE_PAYMENTS_MANAGE: 'store.payments.manage',
